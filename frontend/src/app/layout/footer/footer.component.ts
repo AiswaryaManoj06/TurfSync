@@ -13,11 +13,6 @@ import { Component } from '@angular/core';
           <p class="tagline">The Smart Turf Booking & Comprehensive Operations Platform.</p>
         </div>
         <div class="footer-meta">
-          <div class="roles-badge">
-            <span class="role-pill">Admin</span>
-            <span class="role-pill">Turf Owner</span>
-            <span class="role-pill">Player</span>
-          </div>
           <div class="copy-text">
             &copy; 2026 TurfSync System. All rights reserved. Built with PostgreSQL Direct SQL & Angular.
           </div>
@@ -54,19 +49,6 @@ import { Component } from '@angular/core';
       font-size: 0.85rem;
       color: #64748b;
       margin-top: 0.25rem;
-    }
-    .roles-badge {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 0.5rem;
-    }
-    .role-pill {
-      font-size: 0.72rem;
-      font-weight: 700;
-      background: #1e293b;
-      color: #cbd5e1;
-      padding: 0.2rem 0.6rem;
-      border-radius: 9999px;
     }
     .copy-text {
       font-size: 0.8rem;

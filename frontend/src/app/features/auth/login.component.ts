@@ -71,15 +71,15 @@ import { AlertService } from '../../core/services/alert.service';
 
         <!-- Fast Test Login Presets -->
         <div class="presets-section">
-          <div class="divider"><span>1-CLICK QUICK DEMO LOGINS</span></div>
+          <div class="divider"><span>DEMO CREDENTIALS PRESETS</span></div>
           <div class="preset-buttons">
-            <button class="preset-btn admin" (click)="quickLogin('admin@turfsync.com', 'Admin@123')">
+            <button type="button" class="preset-btn admin" (click)="quickLogin('admin@turfsync.com', 'Admin@123')">
               <i class="bi bi-shield-fill"></i> Admin
             </button>
-            <button class="preset-btn owner" (click)="quickLogin('owner@turfsync.com', 'Owner@123')">
+            <button type="button" class="preset-btn owner" (click)="quickLogin('owner@turfsync.com', 'Owner@123')">
               <i class="bi bi-building"></i> Turf Owner
             </button>
-            <button class="preset-btn player" (click)="quickLogin('player@turfsync.com', 'Player@123')">
+            <button type="button" class="preset-btn player" (click)="quickLogin('player@turfsync.com', 'Player@123')">
               <i class="bi bi-person-running"></i> Player
             </button>
           </div>
@@ -279,7 +279,7 @@ export class LoginComponent {
 
   quickLogin(email: string, pw: string): void {
     this.loginForm.patchValue({ email, password: pw });
-    this.onSubmit();
+    this.loginForm.markAsDirty();
   }
 
   onSubmit(): void {

@@ -63,6 +63,25 @@ function strictEmailValidator(control: AbstractControl) {
   return null;
 }
 
+function gstValidator(control: AbstractControl) {
+  const val = (control.value || '').trim();
+  if (!val) return null; // Optional: empty string is valid
+
+  // Disallow any special characters or whitespace
+  if (/[^a-zA-Z0-9]/.test(val)) {
+    return { specialChar: true };
+  }
+
+  // Strict 15-character GSTIN regex:
+  // 2 digits (State Code) + 5 letters + 4 digits + 1 letter (PAN) + 1 entity char + 'Z' + 1 checksum char
+  const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i;
+  if (!gstRegex.test(val)) {
+    return { invalidGst: true };
+  }
+
+  return null;
+}
+
 @Component({
   selector: 'app-register-owner',
   standalone: true,
@@ -177,10 +196,17 @@ function strictEmailValidator(control: AbstractControl) {
                   class="form-control text-uppercase"
                   placeholder="27ABCDE1234F1Z5"
                   maxlength="15"
-                  [class.is-invalid]="f['gst_number'].touched && f['gst_number'].invalid"
+                  [class.is-invalid]="(f['gst_number'].dirty && f['gst_number'].invalid && f['gst_number'].value) || (f['gst_number'].touched && f['gst_number'].invalid && f['gst_number'].value)"
                 />
-                <div class="invalid-feedback" *ngIf="f['gst_number'].touched && f['gst_number'].invalid">
-                  GST number must be 15 characters if provided.
+                <!-- Immediate warning for special characters -->
+                <div class="warning-feedback" *ngIf="f['gst_number'].dirty && f['gst_number'].errors?.['specialChar'] && f['gst_number'].value">
+                  <i class="bi bi-exclamation-triangle-fill"></i>
+                  <span>Special characters are not allowed in GST number. Enter letters and digits only.</span>
+                </div>
+                <!-- Immediate warning for invalid GST format -->
+                <div class="warning-feedback" *ngIf="f['gst_number'].dirty && f['gst_number'].errors?.['invalidGst'] && !f['gst_number'].errors?.['specialChar'] && f['gst_number'].value">
+                  <i class="bi bi-exclamation-triangle-fill"></i>
+                  <span>Invalid GST format (must be 15 alphanumeric characters: 2 state digits + 10-char PAN + 1 entity code + Z + 1 checksum, e.g. 27ABCDE1234F1Z5).</span>
                 </div>
               </div>
             </div>
@@ -544,7 +570,7 @@ export class RegisterOwnerComponent implements OnInit {
         brand_name: ['', Validators.required],
         email: ['', [Validators.required, strictEmailValidator]],
         mobile: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
-        gst_number: ['', [Validators.maxLength(15)]],
+        gst_number: ['', [gstValidator]],
         bank_account_number: ['', [Validators.required, Validators.pattern(/^\d{9,18}$/)]],
         bank_ifsc: ['', [Validators.required, Validators.pattern(/^[A-Z]{4}0[A-Z0-9]{6}$/)]],
         country_id: ['', Validators.required],

@@ -93,8 +93,8 @@ class RegisterOwnerView(APIView):
             return Response({"error": "A valid email address is required."}, status=status.HTTP_400_BAD_REQUEST)
         if not re.match(r"^\d{10}$", mobile):
             return Response({"error": "Mobile number must be exactly 10 digits."}, status=status.HTTP_400_BAD_REQUEST)
-        if gst_number and len(gst_number) != 15:
-            return Response({"error": "GST number must be 15 characters if provided."}, status=status.HTTP_400_BAD_REQUEST)
+        if gst_number and not re.match(r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$", gst_number.upper()):
+            return Response({"error": "Invalid GST number format (must be 15 alphanumeric characters: 2 state digits + 10-char PAN + 1 entity code + Z + 1 checksum, e.g. 27ABCDE1234F1Z5). No special characters allowed."}, status=status.HTTP_400_BAD_REQUEST)
         if not (bank_account.isdigit() and 9 <= len(bank_account) <= 18):
             return Response({"error": "Bank account number must be between 9 and 18 digits."}, status=status.HTTP_400_BAD_REQUEST)
         if not re.match(r"^[A-Z]{4}0[A-Z0-9]{6}$", bank_ifsc):

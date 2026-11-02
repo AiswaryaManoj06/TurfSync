@@ -1,0 +1,239 @@
+Turf Management System – Summary
+Page 1
+Turf Management System – Specification
+Summary
+1. Overview
+A turf booking platform with three roles. Players request slots; the turf owner decides. A booking is confirmed
+only after the owner approves it. Owners must first be approved by a platform admin.
+Role
+Created by
+Main responsibilities
+Admin
+Inserted directly in the database
+(no registration form)
+Reviews owner registrations and documents; approves, rejects,
+suspends or reactivates owners.
+Turf Owner
+Self-registers; starts as Pending
+Approval
+Adds and manages own turfs and slots; approves or rejects
+booking requests; closes bookings.
+Player
+Self-registers (age 16+)
+Searches turfs, sends booking requests, tracks, withdraws or
+cancels them.
+2. Registration
+Turf Owner form
+
+Text: full name (letters/spaces), brand name, email, mobile (10 digits), GST (optional, 15 chars), bank
+account (9–18 digits), IFSC (11 chars).
+
+Password: min 8 chars with upper, lower, number and special character; confirm must match.
+
+Dropdowns: Country → State → City (dependent, from back-end); ID proof type (Aadhaar, PAN,
+Passport, Driving Licence).
+
+Radio: Owner type – Individual, Partnership, Company. Checkboxes: Sports offered (multi-select).
+
+Date of birth: age 18+. Uploads: ID proof (JPG/PNG/PDF, 2 MB); business/ownership proof (PDF, 5
+MB).
+
+Buttons: Register (sends for admin approval), Reset.
+Player form
+
+Text: full name, email, mobile (10 digits), team name (optional, max 30 chars). Same password rules.
+
+Dropdowns: Gender (Male/Female/Other), State → City. Checkboxes: Preferred sports.
+
+Date of birth: age 16+. Upload: profile photo (optional, JPG/PNG, 1 MB).
+
+Buttons: Register, Reset.
+3. Admin Panel
+
+Login: email + password; allowed only if the admin's database status is Active. Logout ends the session.
+
+Owner list filters: account status (Pending Approval, Approved, Rejected, Suspended), state, city, owner
+type, sort, registered date range, and search by name, brand, email or mobile.
+
+Details shown: owner and brand info, GST, masked bank account, IFSC, sports, uploaded documents
+(view and download), registration time and status history.
+
+Verification checklist: ID proof, ownership proof and bank details must all be ticked before Approve is
+enabled. Admin note is optional (max 250 chars).
+
+Reject: category (Invalid ID Proof, Invalid Ownership Proof, Incorrect Bank Details, Incomplete Details,
+Other) plus a required reason (max 250 chars). Bulk approve/reject is supported.
+
+--- PAGE ---
+Turf Management System – Summary
+Page 2
+
+Suspend / Reactivate: toggle for approved owners. Suspending hides all their turfs from player search
+and stops new requests.
+
+Every decision is logged with admin, date/time, status change and reason.
+4. Owner Panel
+4.1 Manage turfs
+Only an Approved owner can add turfs. An owner sees and manages only their own turfs.
+Group
+Fields and rules
+Basic info
+Turf name (unique per owner and city), address, landmark (opt), contact (10 digits), Google Maps link
+(opt, valid URL), description and rules (opt, max 500 chars each).
+Dropdowns
+Sport (Football, Cricket, Badminton, Basketball, Tennis, Pickleball); surface (Natural Grass, Artificial
+Turf, Wooden, Synthetic); size (5/7/9-a-side, Full Size); State → City.
+Numbers
+Pincode (6 digits); weekday and weekend price per hour (positive); max players (positive integer);
+advance booking limit (1–90 days).
+Timing
+Opening time and closing time (closing must be later).
+Other
+Turf type (Indoor/Outdoor); booking approval mode (Manual); amenities (Floodlights, Changing
+Room, Washroom, Drinking Water, Parking, Equipment Rental, Cafeteria); status Active/Inactive;
+photos (at least 1, JPG/PNG, 2 MB each).
+
+Buttons: Add Turf, Update Turf, Delete Turf (blocked while upcoming approved bookings exist).
+
+Filter own turfs by sport, city or status. Dashboard: pending requests, today's and upcoming bookings per
+turf.
+
+Inactive turfs are hidden from players.
+4.2 Manage slots
+Slots can be created only after a turf exists. Players can request only published, open slots.
+
+Inputs: turf (own active turfs only), duration (30/60/90 min), repeat (Does Not Repeat, Daily, Weekly with
+selected days, Custom), start/end date, start/end time, optional price override, optional max players (not
+above turf max), peak-hour flag, status Open/Closed.
+
+Slot action: Add Slots or Block Slots (block reason required, max 100 chars) for maintenance, private
+events or holidays.
+
+Rules: slot must be inside opening hours and not in the past; slots on the same turf cannot overlap; end
+date ≥ start date; end time later than start time.
+
+Calendar colour-codes slots as Open, Requested, Booked or Blocked; filter by turf, date, status, price.
+
+A slot with an approved booking cannot be deleted or blocked until that booking is cancelled.
+4.3 Review booking requests
+
+Owner sees requests for own turfs only, newest first, with a Pending count badge. Filters: turf, status, sort,
+date range, search by player name, mobile or request ID.
+
+Details shown: request ID, player, mobile, team, number of players, turf, date, slots, total amount,
+add-ons, special requests, submission time.
+
+Actions: Approve (optional note, max 250), Reject (category + required reason), Mark Completed, Mark
+No-Show, Cancel Approved Booking (with reason; player is notified). Bulk approve/reject supported.
+Optional checkbox “Advance Payment Received” (offline).
+
+Reject categories: Slot Unavailable, Maintenance, Private Event, Incomplete Details, Other.
+
+Approving locks the slot and automatically rejects other Pending requests for it.
+
+--- PAGE ---
+Turf Management System – Summary
+Page 3
+
+Auto-expire: no action within 12 hours, or by slot start time, moves the request to Expired and releases
+the slot.
+5. Player Panel
+5.1 Search and request a booking
+
+Filters: state, city, sport, turf size, turf type (Indoor/Outdoor/Any), amenities, price range; sort by price
+(low/high) or newest.
+
+Search results show only Active turfs with at least one open slot on the chosen date. Booked or Blocked
+slots appear disabled; slots with another player's Pending request stay open.
+
+Turf details: name, brand, sport, surface, size, address, hours, price, max players, amenities, cancellation
+policy, rules, photos.
+
+Request form: booking date (not past, within advance limit), one or more consecutive open slots, number
+of players (1 to turf max), add-ons (Equipment Rental, Referee, Water Cans), payment preference (Pay at
+Turf / Pay Online After Approval), team name (opt), special requests (opt, max 250 chars).
+
+Player must accept the turf rules and cancellation policy before sending.
+
+Estimated amount = hourly price × hours + add-ons. After sending: “Request sent, awaiting owner
+approval” (status Pending).
+5.2 Track my requests
+
+Filters: status, turf, sort, date range, search by request ID or turf name; view Upcoming / Past.
+
+Details: request and turf info, date, slots, players, amount, status timeline with timestamps, owner note or
+rejection reason. Owner contact is shown only after approval.
+
+Actions: Withdraw (Pending, any time), Cancel Booking (Approved, before slot start and per the
+cancellation policy), Book Again (prefills a new request), View Details.
+
+Notifications by in-app message, SMS or email on approval, rejection, cancellation or expiry.
+6. Booking Request Status Flow
+Seven states. Only the turf owner can move a request from Pending to Approved or Rejected.
+From
+To
+Trigger
+Pending
+Approved
+Owner approves (slot is still open)
+Pending
+Rejected
+Owner rejects with category and reason
+Pending
+Expired
+Not acted on within 12 hours or by slot start
+Pending
+Cancelled
+Player withdraws
+Approved
+Completed
+Owner closes after the slot time has passed
+Approved
+No-Show
+Owner marks that the player did not arrive
+Approved
+Cancelled
+Player or owner cancels (before slot start)
+Every status change is stored with date and time and shown in the request timeline.
+7. Key Validation Rules
+Area
+Rules
+Registration
+All required fields filled; email and mobile unique; passwords match; owner age 18+, player 16+;
+files must match allowed type and size; owner cannot add turfs until approved.
+
+--- PAGE ---
+Turf Management System – Summary
+Page 4
+Area
+Rules
+Turf
+Required: name, address, contact, sport, state, city, pincode, both prices, max players,
+opening/closing time, 1+ photo. Name unique per owner and city; closing after opening; prices and
+max players positive; cannot delete with upcoming approved bookings; Inactive turf hidden.
+Slots
+Inside opening hours; not in the past; no overlap on the same turf; end date/time valid; slot max
+players ≤ turf max; approved-booking slots cannot be deleted or blocked.
+Booking request
+Only Open slots of an Active turf, from today up to the advance limit; slots consecutive; players ≤
+turf max; no duplicate or overlapping request by the same player; max 5 Pending requests; rules
+and policy accepted.
+Approval
+Only the turf owner approves, rejects or completes; approve only while Pending and slot open;
+approval auto-rejects competing requests; rejection reason required; 12-hour expiry.
+Visibility
+A player sees only their own requests; an owner sees only requests for their own turfs.
+Cancellation
+Pending can be withdrawn any time; Approved can be cancelled only before slot start and per the
+turf's cancellation policy.
+Admin / owner
+approval
+Only an Active database admin can log in; admins cannot be created from the app; Approve needs
+all three verifications; rejection needs category and reason; Pending, Rejected or Suspended
+owners cannot add turfs or manage slots; Suspended owners' turfs are hidden from search; all
+admin decisions are logged.
+8. Test Details
+
+Start: November 2, 2026, 9:00 AM
+
+End: November 4, 2026, 9:00 AM

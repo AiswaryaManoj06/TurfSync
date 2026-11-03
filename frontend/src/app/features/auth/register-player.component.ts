@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -178,9 +178,14 @@ function strictEmailValidator(control: AbstractControl) {
             </div>
 
             <div class="form-group">
-              <label class="form-label">State <span class="required">*</span></label>
-              <select formControlName="state_id" class="form-select" (change)="onStateChange()">
-                <option value="">Select State</option>
+              <label class="form-label d-flex justify-content-between align-items-center">
+                <span>State <span class="required">*</span></span>
+                <span class="text-emerald small" *ngIf="loadingStates">
+                  <span class="spinner-border spinner-border-sm me-1"></span> Loading states...
+                </span>
+              </label>
+              <select formControlName="state_id" class="form-select" (change)="onStateChange()" [disabled]="loadingStates">
+                <option value="">{{ loadingStates ? 'Loading states...' : 'Select State' }}</option>
                 <option *ngFor="let s of states" [value]="s.id">{{ s.name }}</option>
               </select>
             </div>
@@ -357,6 +362,7 @@ function strictEmailValidator(control: AbstractControl) {
 export class RegisterPlayerComponent implements OnInit {
   playerForm: FormGroup;
   loading = false;
+  loadingStates = false;
   loadingCities = false;
   states: State[] = [];
   cities: City[] = [];
@@ -371,7 +377,8 @@ export class RegisterPlayerComponent implements OnInit {
     private fb: FormBuilder,
     private auth: AuthService,
     private alert: AlertService,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {
     this.playerForm = this.fb.group(
       {
@@ -397,10 +404,19 @@ export class RegisterPlayerComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.loadingStates = true;
     this.auth.getLocations().subscribe({
       next: (res) => {
-        this.states = res.states;
-        this.cities = res.cities;
+        this.states = res.states || [];
+        this.cities = res.cities || [];
+        this.loadingStates = false;
+        this.cdr.markForCheck();
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.loadingStates = false;
+        this.cdr.markForCheck();
+        this.cdr.detectChanges();
       }
     });
   }
@@ -414,23 +430,29 @@ export class RegisterPlayerComponent implements OnInit {
     if (!sId) {
       this.filteredCities = [];
       this.playerForm.patchValue({ city_id: '' });
+      this.cdr.markForCheck();
       return;
     }
 
     const selectedState = this.states.find((s) => s.id === sId);
     this.playerForm.patchValue({ city_id: '' });
     this.loadingCities = true;
+    this.cdr.markForCheck();
 
     // Dynamically fetch cities from external location API
     this.auth.getExternalCities(sId, selectedState?.name).subscribe({
       next: (res) => {
         this.filteredCities = res.cities || [];
         this.loadingCities = false;
+        this.cdr.markForCheck();
+        this.cdr.detectChanges();
       },
       error: () => {
         // Fallback to local database cache
         this.filteredCities = this.cities.filter((c) => c.state_id === sId);
         this.loadingCities = false;
+        this.cdr.markForCheck();
+        this.cdr.detectChanges();
       }
     });
   }

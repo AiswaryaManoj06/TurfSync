@@ -152,11 +152,11 @@ import { Turf, Slot } from '../../../core/models/models';
       </div>
 
       <!-- SLOT GENERATOR MODAL -->
-      <div class="modal-overlay" *ngIf="showGeneratorModal" (click)="closeGeneratorModal()">
-        <div class="modal-dialog modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-overlay" *ngIf="showGeneratorModal">
+        <div class="modal-dialog modal-lg">
           <div class="modal-header">
             <h2>Generate Slots Schedule</h2>
-            <button class="close-btn" (click)="closeGeneratorModal()"><i class="bi bi-x-lg"></i></button>
+            <button class="close-btn" type="button" (click)="closeGeneratorModal()" aria-label="Close modal"><i class="bi bi-x-lg"></i></button>
           </div>
 
           <form [formGroup]="genForm" (ngSubmit)="onGenerateSlots()" class="modal-form">
@@ -259,11 +259,11 @@ import { Turf, Slot } from '../../../core/models/models';
       </div>
 
       <!-- BLOCK SLOT MODAL -->
-      <div class="modal-overlay" *ngIf="showBlockModal" (click)="closeBlockModal()">
-        <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-overlay" *ngIf="showBlockModal">
+        <div class="modal-dialog">
           <div class="modal-header">
             <h2>Block Slot Interval</h2>
-            <button class="close-btn" (click)="closeBlockModal()"><i class="bi bi-x-lg"></i></button>
+            <button class="close-btn" type="button" (click)="closeBlockModal()" aria-label="Close modal"><i class="bi bi-x-lg"></i></button>
           </div>
 
           <div class="modal-form">
@@ -438,24 +438,32 @@ import { Turf, Slot } from '../../../core/models/models';
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.6);
+      background: rgba(15, 23, 42, 0.65);
       backdrop-filter: blur(4px);
-      z-index: 1000;
+      z-index: 1050;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
-      padding: 1.5rem;
+      padding: 2rem 1rem;
+      overflow-y: auto;
     }
     .modal-dialog {
       background: #ffffff;
       border-radius: var(--radius-xl);
-      max-height: 90vh;
+      max-height: calc(100vh - 4rem);
       overflow-y: auto;
       width: 100%;
       max-width: 650px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      position: relative;
+      margin: auto 0;
     }
-    .modal-dialog.modal-lg { max-width: 750px; }
+    .modal-dialog.modal-lg { max-width: 780px; }
     .modal-header {
+      position: sticky;
+      top: 0;
+      background: #ffffff;
+      z-index: 20;
       padding: 1.25rem 1.75rem;
       border-bottom: 1px solid var(--border-color);
       display: flex;

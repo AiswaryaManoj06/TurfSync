@@ -153,11 +153,11 @@ function closingTimeValidator(control: AbstractControl) {
       </div>
 
       <!-- ADD / EDIT TURF MODAL -->
-      <div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
-        <div class="modal-dialog modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-overlay" *ngIf="showModal">
+        <div class="modal-dialog modal-lg">
           <div class="modal-header">
             <h2>{{ isEditing ? 'Edit Sports Arena' : 'Add New Sports Arena' }}</h2>
-            <button class="close-btn" (click)="closeModal()"><i class="bi bi-x-lg"></i></button>
+            <button class="close-btn" type="button" (click)="closeModal()" aria-label="Close modal"><i class="bi bi-x-lg"></i></button>
           </div>
 
           <form [formGroup]="turfForm" (ngSubmit)="onSaveTurf()" class="modal-form">
@@ -538,22 +538,28 @@ function closingTimeValidator(control: AbstractControl) {
       inset: 0;
       background: rgba(15, 23, 42, 0.6);
       backdrop-filter: blur(4px);
-      z-index: 1000;
+      z-index: 1050;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
-      padding: 1.5rem;
+      padding: 2rem 1rem;
+      overflow-y: auto;
     }
     .modal-dialog {
       background: #ffffff;
       border-radius: var(--radius-xl);
-      max-height: 90vh;
+      max-height: calc(100vh - 4rem);
       overflow-y: auto;
       width: 100%;
-      box-shadow: var(--shadow-lg);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      position: relative;
     }
-    .modal-dialog.modal-lg { max-width: 800px; }
+    .modal-dialog.modal-lg { max-width: 820px; }
     .modal-header {
+      position: sticky;
+      top: 0;
+      background: #ffffff;
+      z-index: 20;
       padding: 1.25rem 1.75rem;
       border-bottom: 1px solid var(--border-color);
       display: flex;
@@ -686,13 +692,24 @@ export class OwnerTurfsComponent implements OnInit {
   }
 
   openAddModal(): void {
+    if (!this.states || this.states.length === 0) {
+      this.loadLocations();
+    }
     this.isEditing = false;
     this.editingTurfId = null;
     this.turfForm.reset({
+      name: '',
+      address: '',
+      landmark: '',
+      contact_number: '',
+      google_maps_link: '',
       sport: 'Football',
       surface: 'Artificial Turf',
       size: '5-a-side',
       turf_type: 'Outdoor',
+      state_id: '',
+      city_id: '',
+      pincode: '',
       weekday_price_per_hour: 1200,
       weekend_price_per_hour: 1500,
       max_players: 14,
@@ -708,6 +725,9 @@ export class OwnerTurfsComponent implements OnInit {
   }
 
   openEditModal(t: Turf): void {
+    if (!this.states || this.states.length === 0) {
+      this.loadLocations();
+    }
     this.isEditing = true;
     this.editingTurfId = t.id;
     this.modalCities = this.cities.filter((c) => c.state_id === t.state_id);
@@ -736,6 +756,13 @@ export class OwnerTurfsComponent implements OnInit {
       status: t.status
     });
     this.showModal = true;
+  }
+
+  onOverlayClick(event: MouseEvent): void {
+    // Only close if user clicked directly on the dark backdrop, not inside the modal dialog
+    if (event.target === event.currentTarget) {
+      this.closeModal();
+    }
   }
 
   closeModal(): void {

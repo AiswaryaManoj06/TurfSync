@@ -201,11 +201,11 @@ import { BookingRequest, Turf, BookingHistory, Slot } from '../../../core/models
       </div>
 
       <!-- APPROVE MODAL -->
-      <div class="modal-overlay" *ngIf="showApproveModal" (click)="closeApproveModal()">
-        <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-overlay" *ngIf="showApproveModal">
+        <div class="modal-dialog">
           <div class="modal-header">
             <h2>Approve Booking: {{ activeBooking?.booking_reference }}</h2>
-            <button class="close-btn" (click)="closeApproveModal()"><i class="bi bi-x-lg"></i></button>
+            <button class="close-btn" type="button" (click)="closeApproveModal()" aria-label="Close modal"><i class="bi bi-x-lg"></i></button>
           </div>
           <div class="modal-form">
             <p class="text-sm text-muted mb-3">
@@ -241,11 +241,11 @@ import { BookingRequest, Turf, BookingHistory, Slot } from '../../../core/models
       </div>
 
       <!-- REJECT MODAL -->
-      <div class="modal-overlay" *ngIf="showRejectModal" (click)="closeRejectModal()">
-        <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-overlay" *ngIf="showRejectModal">
+        <div class="modal-dialog">
           <div class="modal-header">
             <h2>Reject Booking Request</h2>
-            <button class="close-btn" (click)="closeRejectModal()"><i class="bi bi-x-lg"></i></button>
+            <button class="close-btn" type="button" (click)="closeRejectModal()" aria-label="Close modal"><i class="bi bi-x-lg"></i></button>
           </div>
           <div class="modal-form">
             <div class="form-group">
@@ -282,11 +282,11 @@ import { BookingRequest, Turf, BookingHistory, Slot } from '../../../core/models
       </div>
 
       <!-- CANCEL APPROVED BOOKING MODAL -->
-      <div class="modal-overlay" *ngIf="showCancelModal" (click)="closeCancelModal()">
-        <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-overlay" *ngIf="showCancelModal">
+        <div class="modal-dialog">
           <div class="modal-header">
             <h2>Cancel Approved Booking</h2>
-            <button class="close-btn" (click)="closeCancelModal()"><i class="bi bi-x-lg"></i></button>
+            <button class="close-btn" type="button" (click)="closeCancelModal()" aria-label="Close modal"><i class="bi bi-x-lg"></i></button>
           </div>
           <div class="modal-form">
             <p class="text-sm text-danger mb-3">
@@ -315,11 +315,11 @@ import { BookingRequest, Turf, BookingHistory, Slot } from '../../../core/models
       </div>
 
       <!-- VIEW DETAILS MODAL -->
-      <div class="modal-overlay" *ngIf="showDetailModal" (click)="closeDetailModal()">
-        <div class="modal-dialog modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-overlay" *ngIf="showDetailModal">
+        <div class="modal-dialog modal-lg">
           <div class="modal-header">
             <h2>Booking Details: {{ detailedBooking?.booking?.booking_reference }}</h2>
-            <button class="close-btn" (click)="closeDetailModal()"><i class="bi bi-x-lg"></i></button>
+            <button class="close-btn" type="button" (click)="closeDetailModal()" aria-label="Close modal"><i class="bi bi-x-lg"></i></button>
           </div>
           <div class="modal-form" *ngIf="detailedBooking">
             <div class="details-top-summary mb-4">
@@ -461,12 +461,12 @@ import { BookingRequest, Turf, BookingHistory, Slot } from '../../../core/models
 
     /* Modals */
     .modal-overlay {
-      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6);
-      backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(4px); z-index: 1050; display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto;
     }
-    .modal-dialog { background: #ffffff; border-radius: var(--radius-xl); max-height: 90vh; overflow-y: auto; width: 100%; max-width: 550px; }
-    .modal-dialog.modal-lg { max-width: 700px; }
-    .modal-header { padding: 1.25rem 1.75rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+    .modal-dialog { background: #ffffff; border-radius: var(--radius-xl); max-height: calc(100vh - 4rem); overflow-y: auto; width: 100%; max-width: 550px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); position: relative; margin: auto 0; }
+    .modal-dialog.modal-lg { max-width: 720px; }
+    .modal-header { position: sticky; top: 0; background: #ffffff; z-index: 20; padding: 1.25rem 1.75rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
     .modal-header h2 { font-size: 1.25rem; color: #0f172a; }
     .close-btn { background: none; border: none; font-size: 1.25rem; color: #94a3b8; cursor: pointer; }
     .modal-form { padding: 1.5rem 1.75rem; }

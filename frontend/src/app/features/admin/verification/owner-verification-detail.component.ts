@@ -102,6 +102,11 @@ import { Owner, AuditLog } from '../../../core/models/models';
                 <div class="doc-info">
                   <div class="doc-name">Government ID Proof ({{ owner.id_proof_type }})</div>
                   <div class="doc-meta">Uploaded document file</div>
+                  <div class="doc-preview-thumb mt-2" *ngIf="isImage(owner.id_proof_file)">
+                    <a [href]="getFileUrl(owner.id_proof_file)" target="_blank" rel="noopener noreferrer">
+                      <img [src]="getFileUrl(owner.id_proof_file)" alt="ID Proof Preview" style="max-width: 220px; height: 120px; border-radius: 6px; border: 1px solid #cbd5e1; object-fit: contain; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" />
+                    </a>
+                  </div>
                 </div>
                 <div class="doc-action">
                   <a [href]="getFileUrl(owner.id_proof_file)" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm">
@@ -546,6 +551,12 @@ export class OwnerVerificationDetailComponent implements OnInit {
       }
     }
     return `${backendBase}${path.startsWith('/') ? '' : '/'}${path}`;
+  }
+
+  isImage(path?: string): boolean {
+    if (!path) return false;
+    const lower = path.toLowerCase();
+    return lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.webp');
   }
 
   loadOwner(): void {

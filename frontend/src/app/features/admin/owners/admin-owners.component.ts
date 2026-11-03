@@ -18,22 +18,6 @@ import { Owner, State, City } from '../../../core/models/models';
           <h1 class="page-title">Turf Owners Directory</h1>
           <p class="page-sub">Review registration documents, execute verification checklists, and govern owner accounts.</p>
         </div>
-        <div class="header-actions">
-          <button
-            class="btn btn-primary btn-sm"
-            [disabled]="selectedOwnerIds.length === 0"
-            (click)="onBulkApprove()"
-          >
-            <i class="bi bi-check2-all"></i> Bulk Approve ({{ selectedOwnerIds.length }})
-          </button>
-          <button
-            class="btn btn-outline-danger btn-sm"
-            [disabled]="selectedOwnerIds.length === 0"
-            (click)="onBulkReject()"
-          >
-            <i class="bi bi-x-circle"></i> Bulk Reject ({{ selectedOwnerIds.length }})
-          </button>
-        </div>
       </div>
 
       <!-- Filters Bar -->
@@ -105,9 +89,6 @@ import { Owner, State, City } from '../../../core/models/models';
           <table class="data-table">
             <thead>
               <tr>
-                <th width="40">
-                  <input type="checkbox" [checked]="isAllSelected()" (change)="toggleSelectAll($event)" />
-                </th>
                 <th>Brand / Arena</th>
                 <th>Owner Name</th>
                 <th>Contact Information</th>
@@ -120,19 +101,16 @@ import { Owner, State, City } from '../../../core/models/models';
             </thead>
             <tbody>
               <tr *ngIf="loading">
-                <td colspan="9" class="text-center py-4">
+                <td colspan="8" class="text-center py-4">
                   <span class="spinner-border"></span> Loading owners directory...
                 </td>
               </tr>
               <tr *ngIf="!loading && owners.length === 0">
-                <td colspan="9" class="text-center py-4 text-muted">
+                <td colspan="8" class="text-center py-4 text-muted">
                   No owners found matching your filter criteria.
                 </td>
               </tr>
-              <tr *ngFor="let o of owners" [class.row-selected]="isSelected(o.id)">
-                <td>
-                  <input type="checkbox" [checked]="isSelected(o.id)" (change)="toggleSelect(o.id)" />
-                </td>
+              <tr *ngFor="let o of owners">
                 <td>
                   <div class="brand-title">{{ o.brand_name }}</div>
                   <div class="turf-count" *ngIf="o.turf_count !== undefined">

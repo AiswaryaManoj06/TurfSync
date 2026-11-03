@@ -2,6 +2,7 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterModule, Router } from '@angular/router';
+import { environment } from '../../../../environments/environment';
 import { AdminService } from '../../../core/services/admin.service';
 import { AlertService } from '../../../core/services/alert.service';
 import { Owner, AuditLog } from '../../../core/models/models';
@@ -103,7 +104,7 @@ import { Owner, AuditLog } from '../../../core/models/models';
                   <div class="doc-meta">Uploaded document file</div>
                 </div>
                 <div class="doc-action">
-                  <a [href]="owner.id_proof_file" target="_blank" class="btn btn-outline-primary btn-sm">
+                  <a [href]="getFileUrl(owner.id_proof_file)" target="_blank" class="btn btn-outline-primary btn-sm">
                     <i class="bi bi-box-arrow-up-right"></i> View Document
                   </a>
                 </div>
@@ -116,7 +117,7 @@ import { Owner, AuditLog } from '../../../core/models/models';
                   <div class="doc-meta">Commercial proof (PDF)</div>
                 </div>
                 <div class="doc-action">
-                  <a [href]="owner.business_proof_file" target="_blank" class="btn btn-outline-primary btn-sm">
+                  <a [href]="getFileUrl(owner.business_proof_file)" target="_blank" class="btn btn-outline-primary btn-sm">
                     <i class="bi bi-box-arrow-up-right"></i> View PDF
                   </a>
                 </div>
@@ -527,6 +528,15 @@ export class OwnerVerificationDetailComponent implements OnInit {
 
   get isChecklistComplete(): boolean {
     return this.chkId && this.chkOwnership && this.chkBank;
+  }
+
+  getFileUrl(path: string | undefined): string {
+    if (!path) return '#';
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    const backendBase = environment.apiUrl.replace(/\/api\/?$/, '');
+    return `${backendBase}${path.startsWith('/') ? '' : '/'}${path}`;
   }
 
   loadOwner(): void {

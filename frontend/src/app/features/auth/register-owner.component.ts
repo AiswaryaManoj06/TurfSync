@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -141,17 +141,21 @@ function gstValidator(control: AbstractControl) {
                   formControlName="email"
                   class="form-control"
                   placeholder="owner@domain.com"
-                  [class.is-invalid]="(f['email'].dirty && (f['email'].errors?.['invalidEmail'] || f['email'].errors?.['invalidTld'] || f['email'].errors?.['email'])) || (f['email'].touched && f['email'].invalid)"
+                  [class.is-invalid]="f['email'].errors?.['duplicate'] || (f['email'].dirty && (f['email'].errors?.['invalidEmail'] || f['email'].errors?.['invalidTld'] || f['email'].errors?.['email'])) || (f['email'].touched && f['email'].invalid)"
                 />
-                <div class="warning-feedback" *ngIf="f['email'].dirty && f['email'].errors?.['invalidTld']">
+                <div class="warning-feedback" *ngIf="f['email'].errors?.['duplicate']">
+                  <i class="bi bi-exclamation-octagon-fill"></i>
+                  <span>This email address is already registered. Please use a different email or log in.</span>
+                </div>
+                <div class="warning-feedback" *ngIf="!f['email'].errors?.['duplicate'] && f['email'].dirty && f['email'].errors?.['invalidTld']">
                   <i class="bi bi-exclamation-triangle-fill"></i>
                   <span>Please enter a valid domain extension (e.g., .com, .in, .org, .net, .co, .io).</span>
                 </div>
-                <div class="warning-feedback" *ngIf="f['email'].dirty && f['email'].errors?.['invalidEmail'] && !f['email'].errors?.['invalidTld']">
+                <div class="warning-feedback" *ngIf="!f['email'].errors?.['duplicate'] && f['email'].dirty && f['email'].errors?.['invalidEmail'] && !f['email'].errors?.['invalidTld']">
                   <i class="bi bi-exclamation-triangle-fill"></i>
                   <span>Please enter a complete and valid email address (e.g., owner@domain.com).</span>
                 </div>
-                <div class="invalid-feedback" *ngIf="f['email'].errors?.['required'] && (f['email'].touched || submitted)">
+                <div class="invalid-feedback" *ngIf="!f['email'].errors?.['duplicate'] && f['email'].errors?.['required'] && (f['email'].touched || submitted)">
                   Email address is required.
                 </div>
               </div>
@@ -164,13 +168,17 @@ function gstValidator(control: AbstractControl) {
                   class="form-control"
                   placeholder="10-digit mobile number"
                   maxlength="10"
-                  [class.is-invalid]="(f['mobile'].dirty && f['mobile'].errors?.['pattern'] && f['mobile'].value) || (f['mobile'].touched && f['mobile'].invalid)"
+                  [class.is-invalid]="f['mobile'].errors?.['duplicate'] || (f['mobile'].dirty && f['mobile'].errors?.['pattern'] && f['mobile'].value) || (f['mobile'].touched && f['mobile'].invalid)"
                 />
-                <div class="warning-feedback" *ngIf="f['mobile'].dirty && f['mobile'].errors?.['pattern'] && f['mobile'].value">
+                <div class="warning-feedback" *ngIf="f['mobile'].errors?.['duplicate']">
+                  <i class="bi bi-exclamation-octagon-fill"></i>
+                  <span>This mobile number is already registered. Mobile number must be unique for each user.</span>
+                </div>
+                <div class="warning-feedback" *ngIf="!f['mobile'].errors?.['duplicate'] && f['mobile'].dirty && f['mobile'].errors?.['pattern'] && f['mobile'].value">
                   <i class="bi bi-exclamation-triangle-fill"></i>
                   <span>Mobile number must contain exactly 10 digits (no letters or special characters).</span>
                 </div>
-                <div class="invalid-feedback" *ngIf="f['mobile'].errors?.['required'] && (f['mobile'].touched || submitted)">
+                <div class="invalid-feedback" *ngIf="!f['mobile'].errors?.['duplicate'] && f['mobile'].errors?.['required'] && (f['mobile'].touched || submitted)">
                   Mobile number is required.
                 </div>
               </div>
@@ -224,9 +232,13 @@ function gstValidator(control: AbstractControl) {
                   class="form-control"
                   placeholder="9 to 18 digit account number"
                   maxlength="18"
-                  [class.is-invalid]="f['bank_account_number'].touched && f['bank_account_number'].invalid"
+                  [class.is-invalid]="f['bank_account_number'].errors?.['duplicate'] || (f['bank_account_number'].touched && f['bank_account_number'].invalid)"
                 />
-                <div class="invalid-feedback" *ngIf="f['bank_account_number'].touched && f['bank_account_number'].invalid">
+                <div class="warning-feedback" *ngIf="f['bank_account_number'].errors?.['duplicate']">
+                  <i class="bi bi-exclamation-octagon-fill"></i>
+                  <span>This bank account number is already registered. Bank account must be unique for each user.</span>
+                </div>
+                <div class="invalid-feedback" *ngIf="!f['bank_account_number'].errors?.['duplicate'] && f['bank_account_number'].touched && f['bank_account_number'].invalid">
                   Account number must be between 9 and 18 digits.
                 </div>
               </div>
@@ -239,9 +251,13 @@ function gstValidator(control: AbstractControl) {
                   class="form-control text-uppercase"
                   placeholder="e.g. HDFC0001234 (11 chars)"
                   maxlength="11"
-                  [class.is-invalid]="f['bank_ifsc'].touched && f['bank_ifsc'].invalid"
+                  [class.is-invalid]="f['bank_ifsc'].errors?.['duplicate'] || (f['bank_ifsc'].touched && f['bank_ifsc'].invalid)"
                 />
-                <div class="invalid-feedback" *ngIf="f['bank_ifsc'].touched && f['bank_ifsc'].invalid">
+                <div class="warning-feedback" *ngIf="f['bank_ifsc'].errors?.['duplicate']">
+                  <i class="bi bi-exclamation-octagon-fill"></i>
+                  <span>This bank account & IFSC code combination is already registered.</span>
+                </div>
+                <div class="invalid-feedback" *ngIf="!f['bank_ifsc'].errors?.['duplicate'] && f['bank_ifsc'].touched && f['bank_ifsc'].invalid">
                   Please enter a valid 11-character IFSC code (e.g. HDFC0001234).
                 </div>
               </div>
@@ -562,7 +578,8 @@ export class RegisterOwnerComponent implements OnInit {
     private fb: FormBuilder,
     private auth: AuthService,
     private alert: AlertService,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {
     this.ownerForm = this.fb.group(
       {
@@ -761,7 +778,48 @@ export class RegisterOwnerComponent implements OnInit {
       error: (err) => {
         this.loading = false;
         const msg = err.error?.error || 'Registration failed. Please check your inputs.';
-        this.alert.error('Registration Error', msg);
+        const field = err.error?.field;
+
+        // Reset previous duplicate errors
+        ['email', 'mobile', 'bank_account_number', 'bank_ifsc'].forEach((fName) => {
+          const control = this.ownerForm.get(fName);
+          if (control?.hasError('duplicate')) {
+            const errs = { ...control.errors };
+            delete errs['duplicate'];
+            control.setErrors(Object.keys(errs).length ? errs : null);
+          }
+        });
+
+        // Set duplicate error on specific control and mark as dirty/touched
+        if (field && this.ownerForm.get(field)) {
+          this.ownerForm.get(field)?.setErrors({ duplicate: true });
+          this.ownerForm.get(field)?.markAsTouched();
+          this.ownerForm.get(field)?.markAsDirty();
+        } else {
+          const lower = msg.toLowerCase();
+          if (lower.includes('email')) {
+            this.ownerForm.get('email')?.setErrors({ duplicate: true });
+            this.ownerForm.get('email')?.markAsTouched();
+            this.ownerForm.get('email')?.markAsDirty();
+          } else if (lower.includes('mobile') || lower.includes('phone')) {
+            this.ownerForm.get('mobile')?.setErrors({ duplicate: true });
+            this.ownerForm.get('mobile')?.markAsTouched();
+            this.ownerForm.get('mobile')?.markAsDirty();
+          } else if (lower.includes('bank account') || lower.includes('bank details') || lower.includes('ifsc')) {
+            this.ownerForm.get('bank_account_number')?.setErrors({ duplicate: true });
+            this.ownerForm.get('bank_account_number')?.markAsTouched();
+            this.ownerForm.get('bank_account_number')?.markAsDirty();
+            if (lower.includes('ifsc')) {
+              this.ownerForm.get('bank_ifsc')?.setErrors({ duplicate: true });
+              this.ownerForm.get('bank_ifsc')?.markAsTouched();
+              this.ownerForm.get('bank_ifsc')?.markAsDirty();
+            }
+          }
+        }
+
+        this.cdr.detectChanges();
+        this.cdr.markForCheck();
+        this.alert.error('Duplicate Found', msg);
       }
     });
   }

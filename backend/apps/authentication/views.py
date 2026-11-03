@@ -136,13 +136,48 @@ class RegisterOwnerView(APIView):
         if business_proof_file.size > 5 * 1024 * 1024:
             return Response({"error": "Business proof file size cannot exceed 5 MB."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check unique email and mobile via direct SQL
-        existing_user = query_one("SELECT id FROM users WHERE email = %s", (email,))
+        # Check uniqueness of Email, Mobile, Bank Account Number, and IFSC code via direct SQL
+        existing_user = query_one("SELECT id FROM users WHERE LOWER(email) = LOWER(%s) AND is_deleted = FALSE", (email,))
         if existing_user:
-            return Response({"error": "An account with this email already exists."}, status=status.HTTP_400_BAD_REQUEST)
-        existing_owner_mobile = query_one("SELECT id FROM owners WHERE mobile = %s", (mobile,))
-        if existing_owner_mobile:
-            return Response({"error": "An owner account with this mobile number already exists."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                "error": "An account with this email already exists. Email must be unique for each user.",
+                "field": "email"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        existing_mobile = query_one(
+            """
+            SELECT id FROM owners WHERE mobile = %s AND is_deleted = FALSE
+            UNION
+            SELECT id FROM players WHERE mobile = %s
+            LIMIT 1;
+            """,
+            (mobile, mobile)
+        )
+        if existing_mobile:
+            return Response({
+                "error": "An account with this mobile number already exists. Mobile number must be unique for each user.",
+                "field": "mobile"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        existing_bank_account = query_one(
+            "SELECT id FROM owners WHERE bank_account_number = %s AND is_deleted = FALSE LIMIT 1;",
+            (bank_account,)
+        )
+        if existing_bank_account:
+            return Response({
+                "error": "An owner account with this bank account number already exists. Bank account number must be unique for each user.",
+                "field": "bank_account_number"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        existing_bank_combo = query_one(
+            "SELECT id FROM owners WHERE bank_account_number = %s AND bank_ifsc = %s AND is_deleted = FALSE LIMIT 1;",
+            (bank_account, bank_ifsc)
+        )
+        if existing_bank_combo:
+            return Response({
+                "error": "An owner account with this bank account number and IFSC code already exists. Bank details must be unique for each user.",
+                "field": "bank_ifsc"
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         id_proof_path = save_uploaded_file(id_proof_file, "documents")
         business_proof_path = save_uploaded_file(business_proof_file, "documents")
@@ -197,6 +232,14 @@ class RegisterOwnerView(APIView):
                 "status": "Pending Approval"
             }, status=status.HTTP_201_CREATED)
         except Exception as e:
+            err_str = str(e).lower()
+            if "unique" in err_str or "duplicate" in err_str:
+                if "email" in err_str:
+                    return Response({"error": "An account with this email already exists. Email must be unique for each user.", "field": "email"}, status=status.HTTP_400_BAD_REQUEST)
+                if "mobile" in err_str:
+                    return Response({"error": "An account with this mobile number already exists. Mobile number must be unique for each user.", "field": "mobile"}, status=status.HTTP_400_BAD_REQUEST)
+                if "bank" in err_str:
+                    return Response({"error": "An owner account with this bank account number already exists. Bank account number must be unique for each user.", "field": "bank_account_number"}, status=status.HTTP_400_BAD_REQUEST)
             return Response({"error": f"Database registration failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class RegisterPlayerView(APIView):

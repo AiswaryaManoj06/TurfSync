@@ -280,7 +280,7 @@ a {
   border-radius: 9999px;
 }
 
-.badge-pending {
+.badge-pending, .badge-pending-approval {
   background-color: #fef3c7;
   color: #92400e;
   border: 1px solid #fde68a;

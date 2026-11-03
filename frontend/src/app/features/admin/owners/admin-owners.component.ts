@@ -157,8 +157,16 @@ import { Owner, State, City } from '../../../core/models/models';
                   <span class="type-pill">{{ o.owner_type }}</span>
                 </td>
                 <td>
-                  <span class="badge" [ngClass]="'badge-' + o.account_status.toLowerCase().replace(' ', '-')">
-                    {{ o.account_status }}
+                  <span
+                    class="badge"
+                    [ngClass]="{
+                      'badge-pending': o.account_status === 'Pending Approval',
+                      'badge-approved': o.account_status === 'Approved',
+                      'badge-suspended': o.account_status === 'Suspended',
+                      'badge-rejected': o.account_status === 'Rejected'
+                    }"
+                  >
+                    {{ o.account_status === 'Pending Approval' ? 'PENDING' : o.account_status }}
                   </span>
                 </td>
                 <td>

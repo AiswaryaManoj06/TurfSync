@@ -80,7 +80,7 @@ import { AlertService } from '../../core/services/alert.service';
               <i class="bi bi-building"></i> Turf Owner
             </button>
             <button type="button" class="preset-btn player" (click)="quickLogin('player@turfsync.com', 'Player@123')">
-              <i class="bi bi-person-running"></i> Player
+              <i class="bi bi-person-fill"></i> Player
             </button>
           </div>
         </div>
@@ -143,26 +143,37 @@ import { AlertService } from '../../core/services/alert.service';
     }
     .input-with-icon i:first-child {
       position: absolute;
-      left: 12px;
+      left: 14px;
       top: 50%;
       transform: translateY(-50%);
       color: #94a3b8;
       font-size: 1.1rem;
     }
     .input-with-icon .form-control {
-      padding-left: 2.5rem;
-      padding-right: 2.5rem;
+      padding-left: 2.75rem;
+      padding-right: 2.75rem;
     }
     .toggle-pw-btn {
       position: absolute;
-      right: 12px;
+      right: 14px;
       top: 50%;
       transform: translateY(-50%);
-      background: none;
+      background: transparent;
       border: none;
+      padding: 0;
+      margin: 0;
       color: #94a3b8;
       cursor: pointer;
       font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      z-index: 5;
+    }
+    .toggle-pw-btn:hover {
+      color: #475569;
     }
     .btn-block {
       width: 100%;

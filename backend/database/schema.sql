@@ -46,6 +46,7 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'owner', 'player')),
     status VARCHAR(25) NOT NULL DEFAULT 'Active' CHECK (status IN ('Pending Approval', 'Approved', 'Rejected', 'Suspended', 'Active', 'Inactive')),
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -86,6 +87,7 @@ CREATE TABLE owners (
     rejection_reason VARCHAR(250),
     admin_note VARCHAR(250),
     account_status VARCHAR(25) NOT NULL DEFAULT 'Pending Approval' CHECK (account_status IN ('Pending Approval', 'Approved', 'Rejected', 'Suspended')),
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -135,6 +137,7 @@ CREATE TABLE turfs (
     booking_approval_mode VARCHAR(20) NOT NULL DEFAULT 'Manual',
     amenities TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
     status VARCHAR(20) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Inactive')),
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     photos TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

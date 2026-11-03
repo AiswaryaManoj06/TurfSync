@@ -55,6 +55,14 @@ export class AdminService {
     return this.http.post(`${this.apiUrl}/owners/bulk-action/`, data);
   }
 
+  deleteOwner(ownerId: number, reason?: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/owners/${ownerId}/delete/`, { reason });
+  }
+
+  deleteTurf(turfId: number): Observable<any> {
+    return this.http.delete(`${environment.apiUrl}/turfs/${turfId}/`);
+  }
+
   getAuditLogs(): Observable<{ audit_logs: AuditLog[] }> {
     return this.http.get<{ audit_logs: AuditLog[] }>(`${this.apiUrl}/audit-logs/`);
   }

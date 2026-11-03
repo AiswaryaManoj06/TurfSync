@@ -179,12 +179,20 @@ import { Owner, State, City } from '../../../core/models/models';
                     <button
                       *ngIf="o.account_status === 'Approved' || o.account_status === 'Suspended'"
                       class="btn btn-sm"
-                      [ngClass]="o.account_status === 'Approved' ? 'btn-outline-danger' : 'btn-outline-primary'"
+                      [ngClass]="o.account_status === 'Approved' ? 'btn-outline-warning' : 'btn-outline-primary'"
                       (click)="onToggleSuspend(o)"
                       [title]="o.account_status === 'Approved' ? 'Suspend Owner' : 'Reactivate Owner'"
                     >
                       <i class="bi" [ngClass]="o.account_status === 'Approved' ? 'bi-pause-circle' : 'bi-play-circle'"></i>
                       {{ o.account_status === 'Approved' ? 'Suspend' : 'Reactivate' }}
+                    </button>
+
+                    <button
+                      class="btn btn-sm btn-outline-danger"
+                      (click)="onDeleteOwner(o)"
+                      title="Delete Owner (Soft Delete)"
+                    >
+                      <i class="bi bi-trash"></i> Delete
                     </button>
                   </div>
                 </td>
@@ -424,6 +432,26 @@ export class AdminOwnersComponent implements OnInit {
         this.alert.success(`Owner ${res.account_status}`);
       },
       error: (err) => this.alert.error('Failed', err.error?.error || 'Action failed')
+    });
+  }
+
+  async onDeleteOwner(owner: Owner): Promise<void> {
+    const confirm = await this.alert.confirm(
+      `Delete Owner: ${owner.brand_name}?`,
+      'This will soft-delete the owner and all their registered turfs. Active bookings must be resolved first. Are you sure?',
+      'Yes, Delete Owner',
+      '#ef4444'
+    );
+    if (!confirm) return;
+
+    this.adminService.deleteOwner(owner.id, 'Admin soft-delete action').subscribe({
+      next: (res) => {
+        this.alert.success('Deleted', res.message || 'Owner deleted successfully.');
+        this.loadOwners();
+      },
+      error: (err) => {
+        this.alert.error('Cannot Delete', err.error?.error || 'Failed to delete owner.');
+      }
     });
   }
 

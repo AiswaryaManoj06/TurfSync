@@ -25,6 +25,7 @@ class AdminDashboardStatsView(APIView):
             """
             SELECT account_status, COUNT(*) as count
             FROM owners
+            WHERE is_deleted = FALSE
             GROUP BY account_status;
             """
         )
@@ -36,7 +37,7 @@ class AdminDashboardStatsView(APIView):
         stats["total_owners"] = sum(stats["owners_by_status"].values())
 
         # Turfs and Bookings metrics
-        turf_count = query_one("SELECT COUNT(*) as count FROM turfs;")
+        turf_count = query_one("SELECT COUNT(*) as count FROM turfs WHERE is_deleted = FALSE;")
         stats["total_turfs"] = turf_count["count"] if turf_count else 0
 
         booking_counts = query_all(
@@ -78,12 +79,12 @@ class AdminOwnersListView(APIView):
                 o.rejection_category, o.rejection_reason, o.admin_note, o.account_status,
                 o.created_at, u.email,
                 s.name as state_name, c.name as city_name,
-                (SELECT COUNT(*) FROM turfs t WHERE t.owner_id = o.id) as turf_count
+                (SELECT COUNT(*) FROM turfs t WHERE t.owner_id = o.id AND t.is_deleted = FALSE) as turf_count
             FROM owners o
             JOIN users u ON o.user_id = u.id
             LEFT JOIN states s ON o.state_id = s.id
             LEFT JOIN cities c ON o.city_id = c.id
-            WHERE 1=1
+            WHERE o.is_deleted = FALSE
         """
         sql_params = []
 
@@ -169,8 +170,24 @@ class AdminOwnerDetailView(APIView):
             (owner_id,)
         )
 
+        # Fetch Turfs for this owner
+        turfs = query_all(
+            """
+            SELECT t.id, t.name, t.sport, t.surface, t.size, t.weekday_price_per_hour, t.weekend_price_per_hour,
+                   t.status, t.is_deleted, t.created_at, s.name as state_name, c.name as city_name,
+                   (SELECT COUNT(*) FROM booking_requests br WHERE br.turf_id = t.id AND br.status = 'Approved' AND br.booking_date >= CURRENT_DATE) as upcoming_bookings_count
+            FROM turfs t
+            LEFT JOIN states s ON t.state_id = s.id
+            LEFT JOIN cities c ON t.city_id = c.id
+            WHERE t.owner_id = %s AND t.is_deleted = FALSE
+            ORDER BY t.created_at DESC;
+            """,
+            (owner_id,)
+        )
+
         return Response({
             "owner": owner,
+            "turfs": turfs,
             "audit_logs": audit_logs
         })
 
@@ -445,3 +462,70 @@ class AdminAuditLogsView(APIView):
             """
         )
         return Response({"audit_logs": logs})
+
+class AdminSoftDeleteOwnerView(APIView):
+    """
+    Soft-deletes an owner and all their registered turfs.
+    Enforces business safety check: Cannot delete if any turf has upcoming approved bookings.
+    Records admin audit log and deactivates associated user account.
+    """
+    permission_classes = [IsAdminUserRole]
+
+    def post(self, request, owner_id):
+        reason = (request.data.get("reason") or "Soft-deleted by Administrator").strip()
+        owner = query_one("SELECT id, user_id, brand_name, account_status, is_deleted FROM owners WHERE id = %s;", (owner_id,))
+        if not owner or owner.get("is_deleted"):
+            return Response({"error": "Owner not found or already deleted."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Safety Check: Block deletion if any turf of this owner has upcoming approved bookings
+        upcoming_approved = query_one(
+            """
+            SELECT COUNT(*) as count
+            FROM booking_requests br
+            JOIN turfs t ON br.turf_id = t.id
+            WHERE t.owner_id = %s AND br.status = 'Approved' AND br.booking_date >= CURRENT_DATE;
+            """,
+            (owner_id,)
+        )
+        if upcoming_approved and upcoming_approved["count"] > 0:
+            return Response({
+                "error": f"Cannot delete owner '{owner['brand_name']}'. There are {upcoming_approved['count']} upcoming approved booking(s) across their turfs. Cancel or close those bookings first."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        prev_status = owner["account_status"]
+
+        with db_cursor(as_dict=True) as cur:
+            # 1. Soft-delete owner
+            cur.execute(
+                """
+                UPDATE owners
+                SET is_deleted = TRUE, account_status = 'Suspended', admin_note = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s;
+                """,
+                (f"[DELETED] {reason}", owner_id)
+            )
+
+            # 2. Soft-delete associated user account
+            cur.execute(
+                "UPDATE users SET is_deleted = TRUE, status = 'Inactive', updated_at = CURRENT_TIMESTAMP WHERE id = %s;",
+                (owner["user_id"],)
+            )
+
+            # 3. Soft-delete all turfs belonging to this owner
+            cur.execute(
+                "UPDATE turfs SET is_deleted = TRUE, status = 'Inactive', updated_at = CURRENT_TIMESTAMP WHERE owner_id = %s;",
+                (owner_id,)
+            )
+
+            # 4. Insert Audit Log
+            cur.execute(
+                """
+                INSERT INTO admin_audit_logs (admin_id, target_owner_id, action, previous_status, new_status, reason_or_note)
+                VALUES (%s, %s, 'DELETE_OWNER', %s, 'Deleted', %s);
+                """,
+                (request.user.id, owner_id, prev_status, reason)
+            )
+
+        return Response({
+            "message": f"Owner '{owner['brand_name']}' and all associated turfs have been successfully deleted (soft-deleted)."
+        })

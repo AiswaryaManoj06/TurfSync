@@ -8,6 +8,7 @@ from .views import (
     AdminToggleSuspendOwnerView,
     AdminBulkActionView,
     AdminAuditLogsView,
+    AdminSoftDeleteOwnerView,
 )
 
 urlpatterns = [
@@ -17,6 +18,7 @@ urlpatterns = [
     path("owners/<int:owner_id>/verify/", AdminVerifyOwnerView.as_view(), name="admin_verify_owner"),
     path("owners/<int:owner_id>/reject/", AdminRejectOwnerView.as_view(), name="admin_reject_owner"),
     path("owners/<int:owner_id>/toggle-status/", AdminToggleSuspendOwnerView.as_view(), name="admin_toggle_suspend"),
+    path("owners/<int:owner_id>/delete/", AdminSoftDeleteOwnerView.as_view(), name="admin_delete_owner"),
     path("owners/bulk-action/", AdminBulkActionView.as_view(), name="admin_bulk_action"),
     path("audit-logs/", AdminAuditLogsView.as_view(), name="admin_audit_logs"),
 ]

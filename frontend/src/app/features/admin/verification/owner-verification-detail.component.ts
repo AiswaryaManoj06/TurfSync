@@ -17,10 +17,13 @@ import { Owner, AuditLog } from '../../../core/models/models';
         <a routerLink="/admin/owners" class="back-link">
           <i class="bi bi-arrow-left"></i> Back to Owners Directory
         </a>
-        <div class="status-indicator">
+        <div class="status-indicator d-flex align-items-center gap-2">
           <span class="badge" [ngClass]="'badge-' + owner.account_status.toLowerCase().replace(' ', '-')">
             {{ owner.account_status }}
           </span>
+          <button class="btn btn-outline-danger btn-sm" (click)="onDeleteOwner()" title="Soft-delete this owner">
+            <i class="bi bi-trash"></i> Delete Owner
+          </button>
         </div>
       </div>
 
@@ -118,6 +121,52 @@ import { Owner, AuditLog } from '../../../core/models/models';
                   </a>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- Registered Arenas & Turfs -->
+          <div class="turf-card mb-4">
+            <h2 class="card-title"><i class="bi bi-flag-fill text-primary"></i> Registered Arenas & Turfs ({{ turfs.length }})</h2>
+            <div *ngIf="turfs.length === 0" class="text-muted text-sm py-2">
+              This owner has not registered any sports turfs yet.
+            </div>
+            <div class="table-responsive" *ngIf="turfs.length > 0">
+              <table class="table align-middle">
+                <thead>
+                  <tr>
+                    <th>Turf Name</th>
+                    <th>Sport</th>
+                    <th>Location</th>
+                    <th>Rates</th>
+                    <th>Status</th>
+                    <th class="text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let t of turfs">
+                    <td>
+                      <div class="fw-bold">{{ t.name }}</div>
+                      <small class="text-muted">{{ t.size }} • {{ t.surface }}</small>
+                    </td>
+                    <td><span class="badge bg-light text-dark">{{ t.sport }}</span></td>
+                    <td>{{ t.city_name }}, {{ t.state_name }}</td>
+                    <td>
+                      <div>Weekday: ₹{{ t.weekday_price_per_hour }}/hr</div>
+                      <div>Weekend: ₹{{ t.weekend_price_per_hour }}/hr</div>
+                    </td>
+                    <td>
+                      <span class="badge" [ngClass]="t.status === 'Active' ? 'badge-approved' : 'badge-rejected'">
+                        {{ t.status }}
+                      </span>
+                    </td>
+                    <td class="text-right">
+                      <button class="btn btn-outline-danger btn-sm" (click)="onDeleteTurf(t)" title="Delete Turf (Soft Delete)">
+                        <i class="bi bi-trash"></i> Delete Turf
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -447,6 +496,7 @@ import { Owner, AuditLog } from '../../../core/models/models';
 })
 export class OwnerVerificationDetailComponent implements OnInit {
   owner: Owner | null = null;
+  turfs: any[] = [];
   auditLogs: AuditLog[] = [];
   ownerId!: number;
 
@@ -482,6 +532,7 @@ export class OwnerVerificationDetailComponent implements OnInit {
     this.adminService.getOwnerDetail(this.ownerId).subscribe({
       next: (res) => {
         this.owner = res.owner;
+        this.turfs = (res as any).turfs || [];
         this.auditLogs = res.audit_logs;
         // Pre-fill checkboxes if already verified
         if (this.owner) {
@@ -548,5 +599,46 @@ export class OwnerVerificationDetailComponent implements OnInit {
           this.alert.error('Rejection Error', err.error?.error || 'Failed to reject owner.');
         }
       });
+  }
+
+  async onDeleteOwner(): Promise<void> {
+    if (!this.owner) return;
+    const confirm = await this.alert.confirm(
+      `Delete Owner: ${this.owner.brand_name}?`,
+      'This will soft-delete the owner and all their registered turfs. Active bookings must be resolved first. Are you sure?',
+      'Yes, Delete Owner',
+      '#ef4444'
+    );
+    if (!confirm) return;
+
+    this.adminService.deleteOwner(this.owner.id, 'Admin soft-delete action').subscribe({
+      next: (res) => {
+        this.alert.success('Deleted', res.message || 'Owner deleted successfully.');
+        this.router.navigate(['/admin/owners']);
+      },
+      error: (err) => {
+        this.alert.error('Cannot Delete', err.error?.error || 'Failed to delete owner.');
+      }
+    });
+  }
+
+  async onDeleteTurf(turf: any): Promise<void> {
+    const confirm = await this.alert.confirm(
+      `Delete Turf: ${turf.name}?`,
+      'This will soft-delete the turf from the platform. Active bookings must be resolved first. Are you sure?',
+      'Yes, Delete Turf',
+      '#ef4444'
+    );
+    if (!confirm) return;
+
+    this.adminService.deleteTurf(turf.id).subscribe({
+      next: (res) => {
+        this.alert.success('Deleted', res.message || 'Turf deleted successfully.');
+        this.loadOwner();
+      },
+      error: (err) => {
+        this.alert.error('Cannot Delete', err.error?.error || 'Failed to delete turf.');
+      }
+    });
   }
 }

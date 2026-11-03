@@ -25,7 +25,29 @@ class TurfListCreateView(APIView):
     def get(self, request):
         params = request.query_params
         user = getattr(request, "user", None)
+        is_admin = bool(user and user.is_authenticated and user.role == "admin")
         is_owner_view = bool(user and user.is_authenticated and user.role == "owner")
+
+        if is_admin:
+            owner_id = params.get("owner_id")
+            sql = """
+                SELECT t.*, o.brand_name as owner_brand, o.full_name as owner_name,
+                       s.name as state_name, c.name as city_name,
+                       (SELECT COUNT(*) FROM slots sl WHERE sl.turf_id = t.id AND sl.slot_date >= CURRENT_DATE) as active_slots_count,
+                       (SELECT COUNT(*) FROM booking_requests br WHERE br.turf_id = t.id AND br.status = 'Pending') as pending_requests_count
+                FROM turfs t
+                JOIN owners o ON t.owner_id = o.id
+                LEFT JOIN states s ON t.state_id = s.id
+                LEFT JOIN cities c ON t.city_id = c.id
+                WHERE t.is_deleted = FALSE
+            """
+            sql_params = []
+            if owner_id:
+                sql += " AND t.owner_id = %s"
+                sql_params.append(int(owner_id))
+            sql += " ORDER BY t.created_at DESC;"
+            turfs = query_all(sql, sql_params)
+            return Response({"turfs": turfs})
 
         if is_owner_view:
             # Owner sees only their own turfs
@@ -41,7 +63,7 @@ class TurfListCreateView(APIView):
                 FROM turfs t
                 LEFT JOIN states s ON t.state_id = s.id
                 LEFT JOIN cities c ON t.city_id = c.id
-                WHERE t.owner_id = %s
+                WHERE t.owner_id = %s AND t.is_deleted = FALSE
             """
             sql_params = [owner_id]
             if sport and sport != "All":
@@ -79,7 +101,7 @@ class TurfListCreateView(APIView):
                 JOIN owners o ON t.owner_id = o.id
                 LEFT JOIN states s ON t.state_id = s.id
                 LEFT JOIN cities c ON t.city_id = c.id
-                WHERE t.status = 'Active' AND o.account_status = 'Approved'
+                WHERE t.status = 'Active' AND o.account_status = 'Approved' AND t.is_deleted = FALSE AND o.is_deleted = FALSE
             """
             from datetime import date as dt_date
             target_date = booking_date if booking_date else dt_date.today()
@@ -217,8 +239,10 @@ class TurfDetailView(APIView):
     DELETE: Delete turf (Owner only, BLOCKED if upcoming approved bookings exist).
     """
     def get_permissions(self):
-        if self.request.method in ("PUT", "DELETE"):
+        if self.request.method == "PUT":
             return [IsApprovedOwnerRole()]
+        if self.request.method == "DELETE":
+            return [IsAuthenticatedDirectSQL()]
         return [AllowAny()]
 
     def get(self, request, turf_id):
@@ -230,7 +254,7 @@ class TurfDetailView(APIView):
             JOIN owners o ON t.owner_id = o.id
             LEFT JOIN states s ON t.state_id = s.id
             LEFT JOIN cities c ON t.city_id = c.id
-            WHERE t.id = %s;
+            WHERE t.id = %s AND t.is_deleted = FALSE;
             """,
             (turf_id,)
         )
@@ -311,11 +335,12 @@ class TurfDetailView(APIView):
         return Response({"message": "Turf updated successfully!"})
 
     def delete(self, request, turf_id):
+        is_admin = request.user.role == "admin"
         owner_id = request.user.raw_data.get("owner_id")
-        turf = query_one("SELECT id, owner_id, name FROM turfs WHERE id = %s;", (turf_id,))
-        if not turf:
+        turf = query_one("SELECT id, owner_id, name, status, is_deleted FROM turfs WHERE id = %s;", (turf_id,))
+        if not turf or turf.get("is_deleted"):
             return Response({"error": "Turf not found."}, status=status.HTTP_404_NOT_FOUND)
-        if turf["owner_id"] != owner_id:
+        if not is_admin and turf["owner_id"] != owner_id:
             return Response({"error": "You do not have permission to delete this turf."}, status=status.HTTP_403_FORBIDDEN)
 
         # BUSINESS RULE CHECK: Block deletion while upcoming approved bookings exist!
@@ -332,5 +357,19 @@ class TurfDetailView(APIView):
                 "error": f"Cannot delete turf '{turf['name']}'. There are {upcoming_approved['count']} upcoming approved booking(s) scheduled on this turf. Cancel or complete them first."
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        execute_update("DELETE FROM turfs WHERE id = %s;", (turf_id,))
-        return Response({"message": f"Turf '{turf['name']}' deleted successfully."})
+        # Soft delete: update is_deleted = TRUE, status = 'Inactive'
+        execute_update(
+            "UPDATE turfs SET is_deleted = TRUE, status = 'Inactive', updated_at = CURRENT_TIMESTAMP WHERE id = %s;",
+            (turf_id,)
+        )
+
+        if is_admin:
+            execute_update(
+                """
+                INSERT INTO admin_audit_logs (admin_id, target_owner_id, action, previous_status, new_status, reason_or_note)
+                VALUES (%s, %s, 'DELETE_TURF', %s, 'Inactive', %s);
+                """,
+                (request.user.id, turf["owner_id"], turf["status"], f"Admin soft-deleted turf '{turf['name']}' (ID: {turf_id})")
+            )
+
+        return Response({"message": f"Turf '{turf['name']}' deleted successfully (soft deleted)."})

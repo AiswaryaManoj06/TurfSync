@@ -550,7 +550,8 @@ export class OwnerVerificationDetailComponent implements OnInit {
         // fallback to backendBase
       }
     }
-    return `${backendBase}${path.startsWith('/') ? '' : '/'}${path}`;
+    const fullUrl = `${backendBase}${path.startsWith('/') ? '' : '/'}${path}`;
+    return fullUrl.includes('?') ? fullUrl : `${fullUrl}?v=2`;
   }
 
   isImage(path?: string): boolean {

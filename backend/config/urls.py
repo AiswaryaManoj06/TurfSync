@@ -11,6 +11,9 @@ def serve_media(request, path):
     response["Access-Control-Allow-Methods"] = "GET, HEAD, OPTIONS"
     response["Access-Control-Allow-Headers"] = "*"
     response["Cross-Origin-Resource-Policy"] = "cross-origin"
+    response["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response["Pragma"] = "no-cache"
+    response["Expires"] = "0"
     return response
 
 urlpatterns = [

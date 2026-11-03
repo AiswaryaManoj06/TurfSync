@@ -159,6 +159,18 @@ class RegisterOwnerView(APIView):
                 "field": "mobile"
             }, status=status.HTTP_400_BAD_REQUEST)
 
+        if gst_number:
+            existing_gst = query_one(
+                "SELECT id FROM owners WHERE UPPER(gst_number) = UPPER(%s) AND is_deleted = FALSE LIMIT 1;",
+                (gst_number,)
+            )
+            if existing_gst:
+                return Response({
+                    "error": "An owner account with this GST number already exists. GST number must be unique.",
+                    "field": "gst_number",
+                    "fields": ["gst_number"]
+                }, status=status.HTTP_400_BAD_REQUEST)
+
         existing_bank_combo = query_one(
             "SELECT id FROM owners WHERE bank_account_number = %s AND bank_ifsc = %s AND is_deleted = FALSE LIMIT 1;",
             (bank_account, bank_ifsc)
@@ -543,6 +555,22 @@ class CheckUniqueFieldView(APIView):
                     "available": False,
                     "field": "mobile",
                     "error": "This mobile number is already registered. Mobile number must be unique."
+                })
+            return Response({"available": True})
+
+        elif check_type == "gst":
+            gst = request.data.get("gst_number", "").strip().upper()
+            if not gst:
+                return Response({"available": True})
+            existing = query_one(
+                "SELECT id FROM owners WHERE UPPER(gst_number) = UPPER(%s) AND is_deleted = FALSE LIMIT 1;",
+                (gst,)
+            )
+            if existing:
+                return Response({
+                    "available": False,
+                    "field": "gst_number",
+                    "error": "This GST number is already registered by another owner."
                 })
             return Response({"available": True})
 

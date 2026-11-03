@@ -208,15 +208,22 @@ function gstValidator(control: AbstractControl) {
                   class="form-control text-uppercase"
                   placeholder="27ABCDE1234F1Z5"
                   maxlength="15"
-                  [class.is-invalid]="(f['gst_number'].dirty && f['gst_number'].invalid && f['gst_number'].value) || (f['gst_number'].touched && f['gst_number'].invalid && f['gst_number'].value)"
+                  (blur)="onGstBlur()"
+                  (input)="clearFieldDuplicateError('gst_number')"
+                  [class.is-invalid]="f['gst_number'].errors?.['duplicate'] || (f['gst_number'].dirty && f['gst_number'].invalid && f['gst_number'].value) || (f['gst_number'].touched && f['gst_number'].invalid && f['gst_number'].value)"
                 />
+                <!-- Duplicate warning -->
+                <div class="warning-feedback" *ngIf="f['gst_number'].errors?.['duplicate']">
+                  <i class="bi bi-exclamation-octagon-fill"></i>
+                  <span>This GST number is already registered by another owner.</span>
+                </div>
                 <!-- Immediate warning for special characters -->
-                <div class="warning-feedback" *ngIf="f['gst_number'].dirty && f['gst_number'].errors?.['specialChar'] && f['gst_number'].value">
+                <div class="warning-feedback" *ngIf="!f['gst_number'].errors?.['duplicate'] && f['gst_number'].dirty && f['gst_number'].errors?.['specialChar'] && f['gst_number'].value">
                   <i class="bi bi-exclamation-triangle-fill"></i>
                   <span>Special characters are not allowed in GST number. Enter letters and digits only.</span>
                 </div>
                 <!-- Immediate warning for invalid GST format -->
-                <div class="warning-feedback" *ngIf="f['gst_number'].dirty && f['gst_number'].errors?.['invalidGst'] && !f['gst_number'].errors?.['specialChar'] && f['gst_number'].value">
+                <div class="warning-feedback" *ngIf="!f['gst_number'].errors?.['duplicate'] && f['gst_number'].dirty && f['gst_number'].errors?.['invalidGst'] && !f['gst_number'].errors?.['specialChar'] && f['gst_number'].value">
                   <i class="bi bi-exclamation-triangle-fill"></i>
                   <span>Invalid GST format (must be 15 alphanumeric characters: 2 state digits + 10-char PAN + 1 entity code + Z + 1 checksum, e.g. 27ABCDE1234F1Z5).</span>
                 </div>
@@ -699,6 +706,21 @@ export class RegisterOwnerComponent implements OnInit {
     }
   }
 
+  onGstBlur(): void {
+    const gst = (this.ownerForm.get('gst_number')?.value || '').trim().toUpperCase();
+    if (gst && gst.length === 15 && !this.ownerForm.get('gst_number')?.invalid) {
+      this.auth.checkUnique({ type: 'gst', gst_number: gst }).subscribe({
+        next: (res) => {
+          if (!res.available) {
+            this.ownerForm.get('gst_number')?.setErrors({ duplicate: true });
+            this.ownerForm.get('gst_number')?.markAsTouched();
+            this.cdr.detectChanges();
+          }
+        }
+      });
+    }
+  }
+
   onBankDetailsChange(): void {
     const acc = (this.ownerForm.get('bank_account_number')?.value || '').trim();
     const ifsc = (this.ownerForm.get('bank_ifsc')?.value || '').trim().toUpperCase();
@@ -873,7 +895,7 @@ export class RegisterOwnerComponent implements OnInit {
         const field = err.error?.field;
 
         // Reset previous duplicate errors
-        ['email', 'mobile', 'bank_account_number', 'bank_ifsc'].forEach((fName) => {
+        ['email', 'mobile', 'gst_number', 'bank_account_number', 'bank_ifsc'].forEach((fName) => {
           const control = this.ownerForm.get(fName);
           if (control?.hasError('duplicate')) {
             const errs = { ...control.errors };
@@ -900,6 +922,10 @@ export class RegisterOwnerComponent implements OnInit {
             this.ownerForm.get('mobile')?.setErrors({ duplicate: true });
             this.ownerForm.get('mobile')?.markAsTouched();
             this.ownerForm.get('mobile')?.markAsDirty();
+          } else if (lower.includes('gst')) {
+            this.ownerForm.get('gst_number')?.setErrors({ duplicate: true });
+            this.ownerForm.get('gst_number')?.markAsTouched();
+            this.ownerForm.get('gst_number')?.markAsDirty();
           } else if (lower.includes('bank account') || lower.includes('bank details') || lower.includes('ifsc')) {
             this.ownerForm.get('bank_account_number')?.setErrors({ duplicate: true });
             this.ownerForm.get('bank_account_number')?.markAsTouched();

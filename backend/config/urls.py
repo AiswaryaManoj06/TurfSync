@@ -1,9 +1,17 @@
 """
 TurfSync URL Configuration
 """
-from django.urls import path, include
+from django.urls import path, include, re_path
+from django.views.static import serve
 from django.conf import settings
-from django.conf.urls.static import static
+
+def serve_media(request, path):
+    response = serve(request, path, document_root=settings.MEDIA_ROOT)
+    response["Access-Control-Allow-Origin"] = "*"
+    response["Access-Control-Allow-Methods"] = "GET, HEAD, OPTIONS"
+    response["Access-Control-Allow-Headers"] = "*"
+    response["Cross-Origin-Resource-Policy"] = "cross-origin"
+    return response
 
 urlpatterns = [
     path("api/auth/", include("apps.authentication.urls")),
@@ -13,7 +21,5 @@ urlpatterns = [
     path("api/slots/", include("apps.slots.urls")),
     path("api/bookings/", include("apps.bookings.urls")),
     path("api/notifications/", include("apps.notifications.urls")),
+    re_path(r"^media/(?P<path>.*)$", serve_media),
 ]
-
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

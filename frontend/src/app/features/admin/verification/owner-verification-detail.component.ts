@@ -104,7 +104,7 @@ import { Owner, AuditLog } from '../../../core/models/models';
                   <div class="doc-meta">Uploaded document file</div>
                 </div>
                 <div class="doc-action">
-                  <a [href]="getFileUrl(owner.id_proof_file)" target="_blank" class="btn btn-outline-primary btn-sm">
+                  <a [href]="getFileUrl(owner.id_proof_file)" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm">
                     <i class="bi bi-box-arrow-up-right"></i> View Document
                   </a>
                 </div>
@@ -117,7 +117,7 @@ import { Owner, AuditLog } from '../../../core/models/models';
                   <div class="doc-meta">Commercial proof (PDF)</div>
                 </div>
                 <div class="doc-action">
-                  <a [href]="getFileUrl(owner.business_proof_file)" target="_blank" class="btn btn-outline-primary btn-sm">
+                  <a [href]="getFileUrl(owner.business_proof_file)" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm">
                     <i class="bi bi-box-arrow-up-right"></i> View PDF
                   </a>
                 </div>
@@ -535,7 +535,16 @@ export class OwnerVerificationDetailComponent implements OnInit {
     if (path.startsWith('http://') || path.startsWith('https://')) {
       return path;
     }
-    const backendBase = environment.apiUrl.replace(/\/api\/?$/, '');
+    let backendBase = environment.apiUrl.replace(/\/api\/?$/, '');
+    if (typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      try {
+        const url = new URL(backendBase);
+        url.hostname = window.location.hostname;
+        backendBase = url.origin;
+      } catch (e) {
+        // fallback to backendBase
+      }
+    }
     return `${backendBase}${path.startsWith('/') ? '' : '/'}${path}`;
   }
 

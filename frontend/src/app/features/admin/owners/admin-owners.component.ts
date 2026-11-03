@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, ActivatedRoute } from '@angular/router';
@@ -331,7 +331,8 @@ export class AdminOwnersComponent implements OnInit {
     private adminService: AdminService,
     private auth: AuthService,
     private alert: AlertService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -350,6 +351,8 @@ export class AdminOwnersComponent implements OnInit {
       next: (res) => {
         this.states = res.states;
         this.cities = res.cities;
+        this.cdr.detectChanges();
+        this.cdr.markForCheck();
       }
     });
   }
@@ -378,8 +381,14 @@ export class AdminOwnersComponent implements OnInit {
       next: (res) => {
         this.owners = res.owners;
         this.loading = false;
+        this.cdr.detectChanges();
+        this.cdr.markForCheck();
       },
-      error: () => (this.loading = false)
+      error: () => {
+        this.loading = false;
+        this.cdr.detectChanges();
+        this.cdr.markForCheck();
+      }
     });
   }
 

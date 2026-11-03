@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterModule, Router } from '@angular/router';
@@ -516,11 +516,12 @@ export class OwnerVerificationDetailComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private adminService: AdminService,
-    private alert: AlertService
+    private alert: AlertService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
-    this.ownerId = Number(this.route.snapshot.paramMap.get('ownerId'));
+    this.ownerId = Number(this.route.snapshot.paramMap.get('id') || this.route.snapshot.paramMap.get('ownerId'));
     this.loadOwner();
   }
 
@@ -541,6 +542,8 @@ export class OwnerVerificationDetailComponent implements OnInit {
           this.chkBank = this.owner.verification_bank_details;
           this.adminNote = this.owner.admin_note || '';
         }
+        this.cdr.detectChanges();
+        this.cdr.markForCheck();
       },
       error: () => {
         this.alert.error('Not Found', 'Owner account details could not be loaded.');

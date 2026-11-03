@@ -86,6 +86,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/admin/verification/owner-verification-detail.component').then((m) => m.OwnerVerificationDetailComponent)
       },
       {
+        path: 'owners/:id/verify',
+        loadComponent: () => import('./features/admin/verification/owner-verification-detail.component').then((m) => m.OwnerVerificationDetailComponent)
+      },
+      {
         path: 'audit-logs',
         loadComponent: () => import('./features/admin/audit-logs/admin-audit-logs.component').then((m) => m.AdminAuditLogsComponent)
       }

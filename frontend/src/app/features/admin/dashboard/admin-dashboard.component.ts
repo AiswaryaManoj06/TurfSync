@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AdminService } from '../../../core/services/admin.service';
@@ -182,11 +182,18 @@ import { AdminService } from '../../../core/services/admin.service';
 export class AdminDashboardComponent implements OnInit {
   stats: any = null;
 
-  constructor(private adminService: AdminService) {}
+  constructor(
+    private adminService: AdminService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     this.adminService.getDashboardStats().subscribe({
-      next: (res) => (this.stats = res)
+      next: (res) => {
+        this.stats = res;
+        this.cdr.detectChanges();
+        this.cdr.markForCheck();
+      }
     });
   }
 }

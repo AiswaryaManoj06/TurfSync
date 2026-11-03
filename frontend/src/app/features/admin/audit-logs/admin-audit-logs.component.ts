@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AdminService } from '../../../core/services/admin.service';
@@ -129,7 +129,10 @@ export class AdminAuditLogsComponent implements OnInit {
   logs: AuditLog[] = [];
   loading = false;
 
-  constructor(private adminService: AdminService) {}
+  constructor(
+    private adminService: AdminService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     this.loading = true;
@@ -137,8 +140,14 @@ export class AdminAuditLogsComponent implements OnInit {
       next: (res) => {
         this.logs = res.audit_logs;
         this.loading = false;
+        this.cdr.detectChanges();
+        this.cdr.markForCheck();
       },
-      error: () => (this.loading = false)
+      error: () => {
+        this.loading = false;
+        this.cdr.detectChanges();
+        this.cdr.markForCheck();
+      }
     });
   }
 

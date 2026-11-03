@@ -159,6 +159,17 @@ class RegisterOwnerView(APIView):
                 "field": "mobile"
             }, status=status.HTTP_400_BAD_REQUEST)
 
+        existing_bank_combo = query_one(
+            "SELECT id FROM owners WHERE bank_account_number = %s AND bank_ifsc = %s AND is_deleted = FALSE LIMIT 1;",
+            (bank_account, bank_ifsc)
+        )
+        if existing_bank_combo:
+            return Response({
+                "error": "This bank account number and IFSC code combination is already registered. Bank account number and IFSC code must be unique.",
+                "field": "bank_account_number",
+                "fields": ["bank_account_number", "bank_ifsc"]
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         existing_bank_account = query_one(
             "SELECT id FROM owners WHERE bank_account_number = %s AND is_deleted = FALSE LIMIT 1;",
             (bank_account,)
@@ -166,17 +177,8 @@ class RegisterOwnerView(APIView):
         if existing_bank_account:
             return Response({
                 "error": "An owner account with this bank account number already exists. Bank account number must be unique for each user.",
-                "field": "bank_account_number"
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        existing_bank_combo = query_one(
-            "SELECT id FROM owners WHERE bank_account_number = %s AND bank_ifsc = %s AND is_deleted = FALSE LIMIT 1;",
-            (bank_account, bank_ifsc)
-        )
-        if existing_bank_combo:
-            return Response({
-                "error": "An owner account with this bank account number and IFSC code already exists. Bank details must be unique for each user.",
-                "field": "bank_ifsc"
+                "field": "bank_account_number",
+                "fields": ["bank_account_number"]
             }, status=status.HTTP_400_BAD_REQUEST)
 
         id_proof_path = save_uploaded_file(id_proof_file, "documents")
@@ -499,4 +501,80 @@ class ExternalCitiesView(APIView):
             "count": len(cities),
             "cities": cities
         })
+
+class CheckUniqueFieldView(APIView):
+    """
+    Real-time check for field uniqueness during registration.
+    Checks email, mobile, and bank account number / IFSC combination.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        check_type = request.data.get("type", "").strip().lower()
+
+        if check_type == "email":
+            email = request.data.get("email", "").strip().lower()
+            if not email or "@" not in email:
+                return Response({"available": True})
+            existing = query_one("SELECT id FROM users WHERE LOWER(email) = LOWER(%s) AND is_deleted = FALSE LIMIT 1;", (email,))
+            if existing:
+                return Response({
+                    "available": False,
+                    "field": "email",
+                    "error": "This email address is already registered. Please use a different email or log in."
+                })
+            return Response({"available": True})
+
+        elif check_type == "mobile":
+            mobile = request.data.get("mobile", "").strip()
+            if not mobile or len(mobile) != 10:
+                return Response({"available": True})
+            existing = query_one(
+                """
+                SELECT id FROM owners WHERE mobile = %s AND is_deleted = FALSE
+                UNION
+                SELECT id FROM players WHERE mobile = %s
+                LIMIT 1;
+                """,
+                (mobile, mobile)
+            )
+            if existing:
+                return Response({
+                    "available": False,
+                    "field": "mobile",
+                    "error": "This mobile number is already registered. Mobile number must be unique."
+                })
+            return Response({"available": True})
+
+        elif check_type == "bank":
+            bank_account = request.data.get("bank_account_number", "").strip()
+            bank_ifsc = request.data.get("bank_ifsc", "").strip().upper()
+
+            if bank_account and len(bank_account) >= 9:
+                if bank_ifsc and len(bank_ifsc) == 11:
+                    existing_combo = query_one(
+                        "SELECT id FROM owners WHERE bank_account_number = %s AND bank_ifsc = %s AND is_deleted = FALSE LIMIT 1;",
+                        (bank_account, bank_ifsc)
+                    )
+                    if existing_combo:
+                        return Response({
+                            "available": False,
+                            "fields": ["bank_account_number", "bank_ifsc"],
+                            "error": "This bank account number and IFSC code combination is already registered by another owner."
+                        })
+
+                existing_acc = query_one(
+                    "SELECT id FROM owners WHERE bank_account_number = %s AND is_deleted = FALSE LIMIT 1;",
+                    (bank_account,)
+                )
+                if existing_acc:
+                    return Response({
+                        "available": False,
+                        "fields": ["bank_account_number"],
+                        "error": "This bank account number is already registered by another owner."
+                    })
+
+            return Response({"available": True})
+
+        return Response({"available": True})
 

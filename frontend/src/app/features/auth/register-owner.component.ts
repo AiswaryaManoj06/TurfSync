@@ -141,6 +141,8 @@ function gstValidator(control: AbstractControl) {
                   formControlName="email"
                   class="form-control"
                   placeholder="owner@domain.com"
+                  (blur)="onEmailBlur()"
+                  (input)="clearFieldDuplicateError('email')"
                   [class.is-invalid]="f['email'].errors?.['duplicate'] || (f['email'].dirty && (f['email'].errors?.['invalidEmail'] || f['email'].errors?.['invalidTld'] || f['email'].errors?.['email'])) || (f['email'].touched && f['email'].invalid)"
                 />
                 <div class="warning-feedback" *ngIf="f['email'].errors?.['duplicate']">
@@ -168,6 +170,8 @@ function gstValidator(control: AbstractControl) {
                   class="form-control"
                   placeholder="10-digit mobile number"
                   maxlength="10"
+                  (blur)="onMobileBlur()"
+                  (input)="clearFieldDuplicateError('mobile')"
                   [class.is-invalid]="f['mobile'].errors?.['duplicate'] || (f['mobile'].dirty && f['mobile'].errors?.['pattern'] && f['mobile'].value) || (f['mobile'].touched && f['mobile'].invalid)"
                 />
                 <div class="warning-feedback" *ngIf="f['mobile'].errors?.['duplicate']">
@@ -232,6 +236,8 @@ function gstValidator(control: AbstractControl) {
                   class="form-control"
                   placeholder="9 to 18 digit account number"
                   maxlength="18"
+                  (blur)="onBankDetailsChange()"
+                  (input)="clearBankDuplicateError('bank_account_number')"
                   [class.is-invalid]="f['bank_account_number'].errors?.['duplicate'] || (f['bank_account_number'].touched && f['bank_account_number'].invalid)"
                 />
                 <div class="warning-feedback" *ngIf="f['bank_account_number'].errors?.['duplicate']">
@@ -251,6 +257,8 @@ function gstValidator(control: AbstractControl) {
                   class="form-control text-uppercase"
                   placeholder="e.g. HDFC0001234 (11 chars)"
                   maxlength="11"
+                  (blur)="onBankDetailsChange()"
+                  (input)="clearBankDuplicateError('bank_ifsc')"
                   [class.is-invalid]="f['bank_ifsc'].errors?.['duplicate'] || (f['bank_ifsc'].touched && f['bank_ifsc'].invalid)"
                 />
                 <div class="warning-feedback" *ngIf="f['bank_ifsc'].errors?.['duplicate']">
@@ -641,6 +649,90 @@ export class RegisterOwnerComponent implements OnInit {
     this.filteredCities = [];
   }
 
+  clearBankDuplicateError(field: string): void {
+    const ctrl = this.ownerForm.get(field);
+    if (ctrl?.hasError('duplicate')) {
+      const errs = { ...ctrl.errors };
+      delete errs['duplicate'];
+      ctrl.setErrors(Object.keys(errs).length ? errs : null);
+      this.cdr.detectChanges();
+    }
+  }
+
+  clearFieldDuplicateError(field: string): void {
+    const ctrl = this.ownerForm.get(field);
+    if (ctrl?.hasError('duplicate')) {
+      const errs = { ...ctrl.errors };
+      delete errs['duplicate'];
+      ctrl.setErrors(Object.keys(errs).length ? errs : null);
+      this.cdr.detectChanges();
+    }
+  }
+
+  onEmailBlur(): void {
+    const email = (this.ownerForm.get('email')?.value || '').trim();
+    if (email && email.includes('@') && !this.ownerForm.get('email')?.hasError('invalidEmail')) {
+      this.auth.checkUnique({ type: 'email', email }).subscribe({
+        next: (res) => {
+          if (!res.available) {
+            this.ownerForm.get('email')?.setErrors({ duplicate: true });
+            this.ownerForm.get('email')?.markAsTouched();
+            this.cdr.detectChanges();
+          }
+        }
+      });
+    }
+  }
+
+  onMobileBlur(): void {
+    const mobile = (this.ownerForm.get('mobile')?.value || '').trim();
+    if (mobile && mobile.length === 10) {
+      this.auth.checkUnique({ type: 'mobile', mobile }).subscribe({
+        next: (res) => {
+          if (!res.available) {
+            this.ownerForm.get('mobile')?.setErrors({ duplicate: true });
+            this.ownerForm.get('mobile')?.markAsTouched();
+            this.cdr.detectChanges();
+          }
+        }
+      });
+    }
+  }
+
+  onBankDetailsChange(): void {
+    const acc = (this.ownerForm.get('bank_account_number')?.value || '').trim();
+    const ifsc = (this.ownerForm.get('bank_ifsc')?.value || '').trim().toUpperCase();
+
+    if (acc && acc.length >= 9) {
+      this.auth.checkUnique({
+        type: 'bank',
+        bank_account_number: acc,
+        bank_ifsc: ifsc
+      }).subscribe({
+        next: (res) => {
+          if (!res.available) {
+            const fields = res.fields || (res.field ? [res.field] : ['bank_account_number']);
+            fields.forEach((f) => {
+              this.ownerForm.get(f)?.setErrors({ duplicate: true });
+              this.ownerForm.get(f)?.markAsTouched();
+            });
+            this.cdr.detectChanges();
+          } else {
+            ['bank_account_number', 'bank_ifsc'].forEach((f) => {
+              const ctrl = this.ownerForm.get(f);
+              if (ctrl?.hasError('duplicate')) {
+                const errs = { ...ctrl.errors };
+                delete errs['duplicate'];
+                ctrl.setErrors(Object.keys(errs).length ? errs : null);
+              }
+            });
+            this.cdr.detectChanges();
+          }
+        }
+      });
+    }
+  }
+
   onStateChange(): void {
     const sId = Number(this.ownerForm.get('state_id')?.value);
     if (!sId) {
@@ -790,11 +882,14 @@ export class RegisterOwnerComponent implements OnInit {
           }
         });
 
-        // Set duplicate error on specific control and mark as dirty/touched
-        if (field && this.ownerForm.get(field)) {
-          this.ownerForm.get(field)?.setErrors({ duplicate: true });
-          this.ownerForm.get(field)?.markAsTouched();
-          this.ownerForm.get(field)?.markAsDirty();
+        // Set duplicate error on specific control(s) and mark as dirty/touched
+        const returnedFields: string[] = err.error?.fields || (field ? [field] : []);
+        if (returnedFields.length > 0) {
+          returnedFields.forEach((fName) => {
+            this.ownerForm.get(fName)?.setErrors({ duplicate: true });
+            this.ownerForm.get(fName)?.markAsTouched();
+            this.ownerForm.get(fName)?.markAsDirty();
+          });
         } else {
           const lower = msg.toLowerCase();
           if (lower.includes('email')) {

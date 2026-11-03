@@ -70,6 +70,10 @@ export class AuthService {
     return this.http.post(`${this.apiUrl}/register/owner/`, formData);
   }
 
+  checkUnique(data: { type: string; [key: string]: any }): Observable<{ available: boolean; field?: string; fields?: string[]; error?: string }> {
+    return this.http.post<{ available: boolean; field?: string; fields?: string[]; error?: string }>(`${this.apiUrl}/check-unique/`, data);
+  }
+
   registerPlayer(formData: FormData): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${this.apiUrl}/register/player/`, formData).pipe(
       tap((response) => {

@@ -1,9 +1,10 @@
 from django.urls import path
-from .views import LocationsView, RegisterOwnerView, RegisterPlayerView, LoginView, CurrentUserView, ExternalCitiesView
+from .views import LocationsView, RegisterOwnerView, RegisterPlayerView, LoginView, CurrentUserView, ExternalCitiesView, CheckUniqueFieldView
 
 urlpatterns = [
     path("locations/", LocationsView.as_view(), name="locations"),
     path("external-cities/", ExternalCitiesView.as_view(), name="external_cities"),
+    path("check-unique/", CheckUniqueFieldView.as_view(), name="check_unique"),
     path("register/owner/", RegisterOwnerView.as_view(), name="register_owner"),
     path("register/player/", RegisterPlayerView.as_view(), name="register_player"),
     path("login/", LoginView.as_view(), name="login"),

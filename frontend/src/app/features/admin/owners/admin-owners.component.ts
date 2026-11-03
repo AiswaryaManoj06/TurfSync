@@ -46,6 +46,7 @@ import { Owner, State, City } from '../../../core/models/models';
               <input
                 type="text"
                 [(ngModel)]="searchQuery"
+                (input)="onSearchInput()"
                 (keyup.enter)="loadOwners()"
                 placeholder="Search by brand, name, email or mobile..."
                 class="form-control"
@@ -93,9 +94,6 @@ import { Owner, State, City } from '../../../core/models/models';
           <div class="filter-btn-group">
             <button class="btn btn-secondary btn-sm" (click)="resetFilters()">
               <i class="bi bi-arrow-counterclockwise"></i> Reset
-            </button>
-            <button class="btn btn-primary btn-sm" (click)="loadOwners()">
-              <i class="bi bi-funnel-fill"></i> Filter
             </button>
           </div>
         </div>
@@ -398,6 +396,17 @@ export class AdminOwnersComponent implements OnInit {
         this.cdr.markForCheck();
       }
     });
+  }
+
+  searchTimeout: any = null;
+
+  onSearchInput(): void {
+    if (this.searchTimeout) {
+      clearTimeout(this.searchTimeout);
+    }
+    this.searchTimeout = setTimeout(() => {
+      this.loadOwners();
+    }, 300);
   }
 
   resetFilters(): void {

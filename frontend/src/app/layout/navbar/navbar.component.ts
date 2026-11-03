@@ -72,29 +72,6 @@ import { User, NotificationItem } from '../../core/models/models';
 
           <!-- Authenticated -->
           <ng-container *ngIf="currentUser">
-            <!-- Notifications Bell -->
-            <div class="notifications-bell" (click)="toggleNotifications()">
-              <i class="bi bi-bell"></i>
-              <span class="notification-badge" *ngIf="unreadCount > 0">{{ unreadCount }}</span>
-              
-              <!-- Notifications Popover -->
-              <div class="notifications-popover" *ngIf="showNotifications" (click)="$event.stopPropagation()">
-                <div class="popover-header">
-                  <span>Notifications ({{ unreadCount }} unread)</span>
-                  <button class="btn-text" (click)="markAllAsRead()">Mark all read</button>
-                </div>
-                <div class="popover-body">
-                  <div *ngIf="notifications.length === 0" class="empty-state">
-                    No notifications yet.
-                  </div>
-                  <div *ngFor="let n of notifications" class="notification-row" [class.unread]="!n.is_read" (click)="markAsRead(n)">
-                    <div class="notif-title">{{ n.title }}</div>
-                    <div class="notif-msg">{{ n.message }}</div>
-                    <div class="notif-time">{{ n.created_at | date:'short' }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
 
             <!-- Profile Badge & Dropdown -->
             <div class="profile-pill">

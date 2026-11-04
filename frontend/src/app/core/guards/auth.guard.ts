@@ -62,3 +62,24 @@ export const playerGuard: CanActivateFn = (route, state) => {
   router.navigate(['/auth/login']);
   return false;
 };
+
+export const playerOrGuestGuard: CanActivateFn = (route, state) => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+
+  if (!auth.isLoggedIn) {
+    return true; // Unauthenticated guest can explore for registration
+  }
+  if (auth.isPlayer) {
+    return true; // Players can explore
+  }
+  if (auth.isAdmin) {
+    router.navigate(['/admin/dashboard']);
+    return false;
+  }
+  if (auth.isOwner) {
+    router.navigate(['/owner/dashboard']);
+    return false;
+  }
+  return true;
+};

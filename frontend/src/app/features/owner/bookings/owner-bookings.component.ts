@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, ActivatedRoute } from '@angular/router';
@@ -23,20 +23,6 @@ import { BookingRequest, Turf, BookingHistory, Slot } from '../../../core/models
             <span class="pulsing-dot"></span>
             <b>{{ pendingCount }}</b> Pending Request(s)
           </div>
-          <button
-            class="btn btn-primary btn-sm"
-            [disabled]="selectedBookingIds.length === 0"
-            (click)="onBulkApprove()"
-          >
-            <i class="bi bi-check2-all"></i> Bulk Approve ({{ selectedBookingIds.length }})
-          </button>
-          <button
-            class="btn btn-outline-danger btn-sm"
-            [disabled]="selectedBookingIds.length === 0"
-            (click)="onBulkReject()"
-          >
-            <i class="bi bi-x-circle"></i> Bulk Reject ({{ selectedBookingIds.length }})
-          </button>
         </div>
       </div>
 
@@ -88,8 +74,7 @@ import { BookingRequest, Turf, BookingHistory, Slot } from '../../../core/models
           </div>
 
           <div class="filter-btn-group">
-            <button class="btn btn-secondary btn-sm" (click)="resetFilters()">Reset</button>
-            <button class="btn btn-primary btn-sm" (click)="loadBookings()">Filter</button>
+            <button class="btn btn-secondary btn-sm" (click)="resetFilters()">Reset Filters</button>
           </div>
         </div>
       </div>
@@ -100,9 +85,6 @@ import { BookingRequest, Turf, BookingHistory, Slot } from '../../../core/models
           <table class="data-table">
             <thead>
               <tr>
-                <th width="40">
-                  <input type="checkbox" [checked]="isAllSelected()" (change)="toggleSelectAll($event)" />
-                </th>
                 <th>Booking Reference</th>
                 <th>Player & Team</th>
                 <th>Arena Turf</th>
@@ -116,20 +98,12 @@ import { BookingRequest, Turf, BookingHistory, Slot } from '../../../core/models
             </thead>
             <tbody>
               <tr *ngIf="loading">
-                <td colspan="10" class="text-center py-4">Loading booking requests...</td>
+                <td colspan="9" class="text-center py-4">Loading booking requests...</td>
               </tr>
               <tr *ngIf="!loading && bookings.length === 0">
-                <td colspan="10" class="text-center py-4 text-muted">No booking requests found matching criteria.</td>
+                <td colspan="9" class="text-center py-4 text-muted">No booking requests found matching criteria.</td>
               </tr>
-              <tr *ngFor="let b of bookings" [class.row-selected]="isSelected(b.id)">
-                <td>
-                  <input
-                    type="checkbox"
-                    *ngIf="b.status === 'Pending'"
-                    [checked]="isSelected(b.id)"
-                    (change)="toggleSelect(b.id)"
-                  />
-                </td>
+              <tr *ngFor="let b of bookings">
                 <td>
                   <span class="font-mono font-bold">{{ b.booking_reference }}</span>
                   <div class="text-muted text-xs">{{ b.created_at | date:'short' }}</div>
@@ -464,7 +438,7 @@ import { BookingRequest, Turf, BookingHistory, Slot } from '../../../core/models
       position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65);
       backdrop-filter: blur(4px); z-index: 1050; display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto;
     }
-    .modal-dialog { background: #ffffff; border-radius: var(--radius-xl); max-height: calc(100vh - 4rem); overflow-y: auto; width: 100%; max-width: 550px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); position: relative; margin: auto 0; }
+    .modal-dialog { background: #ffffff; border-radius: var(--radius-xl); max-height: calc(100vh - 4rem); overflow-y: auto; width: 100%; max-width: 550px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); position: relative; margin: auto 0; pointer-events: auto; }
     .modal-dialog.modal-lg { max-width: 720px; }
     .modal-header { position: sticky; top: 0; background: #ffffff; z-index: 20; padding: 1.25rem 1.75rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
     .modal-header h2 { font-size: 1.25rem; color: #0f172a; }
@@ -523,7 +497,8 @@ export class OwnerBookingsComponent implements OnInit {
     private bookingService: BookingService,
     private turfService: TurfService,
     private alert: AlertService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -537,12 +512,17 @@ export class OwnerBookingsComponent implements OnInit {
 
   loadTurfs(): void {
     this.turfService.getTurfs().subscribe({
-      next: (res) => (this.turfs = res.turfs)
+      next: (res) => {
+        this.turfs = res.turfs || [];
+        this.cdr.detectChanges();
+      },
+      error: () => this.cdr.detectChanges()
     });
   }
 
   loadBookings(): void {
     this.loading = true;
+    this.cdr.detectChanges();
     const filters: Record<string, any> = {
       search: this.searchQuery,
       turf_id: this.turfFilter,
@@ -552,11 +532,15 @@ export class OwnerBookingsComponent implements OnInit {
 
     this.bookingService.getOwnerBookings(filters).subscribe({
       next: (res) => {
-        this.bookings = res.requests;
-        this.pendingCount = res.pending_count;
+        this.bookings = res.requests || [];
+        this.pendingCount = res.pending_count || 0;
         this.loading = false;
+        this.cdr.detectChanges();
       },
-      error: () => (this.loading = false)
+      error: () => {
+        this.loading = false;
+        this.cdr.detectChanges();
+      }
     });
   }
 
@@ -598,32 +582,32 @@ export class OwnerBookingsComponent implements OnInit {
     this.ownerNote = '';
     this.advancePaymentReceived = false;
     this.showApproveModal = true;
+    this.cdr.detectChanges();
   }
   closeApproveModal(): void {
     this.showApproveModal = false;
     this.activeBooking = null;
+    this.cdr.detectChanges();
   }
 
   onConfirmApprove(): void {
     if (!this.activeBooking) return;
-    this.approving = true;
-    this.bookingService
-      .approveBooking(this.activeBooking.id, {
-        owner_note: this.ownerNote,
-        advance_payment_received: this.advancePaymentReceived
-      })
-      .subscribe({
-        next: (res) => {
-          this.approving = false;
-          this.alert.success('Booking Approved!', res.message);
-          this.closeApproveModal();
-          this.loadBookings();
-        },
-        error: (err) => {
-          this.approving = false;
-          this.alert.error('Approval Error', err.error?.error || 'Failed to approve booking.');
-        }
-      });
+    const bookingId = this.activeBooking.id;
+    const payload = {
+      owner_note: this.ownerNote,
+      advance_payment_received: this.advancePaymentReceived
+    };
+    this.closeApproveModal();
+    this.bookingService.approveBooking(bookingId, payload).subscribe({
+      next: (res) => {
+        this.alert.toastSuccess('Booking approved successfully!');
+        this.loadBookings();
+      },
+      error: (err) => {
+        this.alert.error('Approval Error', err.error?.error || 'Failed to approve booking.');
+        this.loadBookings();
+      }
+    });
   }
 
   openRejectModal(b: BookingRequest): void {
@@ -631,57 +615,59 @@ export class OwnerBookingsComponent implements OnInit {
     this.rejectionCategory = 'Slot Unavailable';
     this.rejectionReason = '';
     this.showRejectModal = true;
+    this.cdr.detectChanges();
   }
   closeRejectModal(): void {
     this.showRejectModal = false;
     this.activeBooking = null;
+    this.cdr.detectChanges();
   }
 
   onConfirmReject(): void {
     if (!this.activeBooking || !this.rejectionReason.trim()) return;
-    this.rejecting = true;
-    this.bookingService
-      .rejectBooking(this.activeBooking.id, {
-        rejection_category: this.rejectionCategory,
-        rejection_reason: this.rejectionReason.trim()
-      })
-      .subscribe({
-        next: (res) => {
-          this.rejecting = false;
-          this.alert.success('Request Rejected', res.message);
-          this.closeRejectModal();
-          this.loadBookings();
-        },
-        error: (err) => {
-          this.rejecting = false;
-          this.alert.error('Rejection Error', err.error?.error || 'Failed to reject booking.');
-        }
-      });
+    const bookingId = this.activeBooking.id;
+    const payload = {
+      rejection_category: this.rejectionCategory,
+      rejection_reason: this.rejectionReason.trim()
+    };
+    this.closeRejectModal();
+    this.bookingService.rejectBooking(bookingId, payload).subscribe({
+      next: (res) => {
+        this.alert.toastSuccess('Booking request rejected.');
+        this.loadBookings();
+      },
+      error: (err) => {
+        this.alert.error('Rejection Error', err.error?.error || 'Failed to reject booking.');
+        this.loadBookings();
+      }
+    });
   }
 
   openCancelModal(b: BookingRequest): void {
     this.activeBooking = b;
     this.cancellationReason = '';
     this.showCancelModal = true;
+    this.cdr.detectChanges();
   }
   closeCancelModal(): void {
     this.showCancelModal = false;
     this.activeBooking = null;
+    this.cdr.detectChanges();
   }
 
   onConfirmCancel(): void {
     if (!this.activeBooking || !this.cancellationReason.trim()) return;
-    this.cancelling = true;
-    this.bookingService.cancelBooking(this.activeBooking.id, this.cancellationReason.trim()).subscribe({
+    const bookingId = this.activeBooking.id;
+    const reason = this.cancellationReason.trim();
+    this.closeCancelModal();
+    this.bookingService.cancelBooking(bookingId, reason).subscribe({
       next: (res) => {
-        this.cancelling = false;
-        this.alert.success('Booking Cancelled', res.message);
-        this.closeCancelModal();
+        this.alert.toastSuccess('Booking cancelled.');
         this.loadBookings();
       },
       error: (err) => {
-        this.cancelling = false;
         this.alert.error('Cancellation Failed', err.error?.error || 'Failed to cancel booking.');
+        this.loadBookings();
       }
     });
   }
@@ -696,7 +682,7 @@ export class OwnerBookingsComponent implements OnInit {
 
     this.bookingService.closeBooking(b.id, action).subscribe({
       next: (res) => {
-        this.alert.success('Booking Closed', res.message);
+        this.alert.toastSuccess(`Booking closed as ${action}.`);
         this.loadBookings();
       },
       error: (err) => this.alert.error('Error', err.error?.error || 'Action failed.')
@@ -708,12 +694,14 @@ export class OwnerBookingsComponent implements OnInit {
       next: (res) => {
         this.detailedBooking = res;
         this.showDetailModal = true;
+        this.cdr.detectChanges();
       }
     });
   }
   closeDetailModal(): void {
     this.showDetailModal = false;
     this.detailedBooking = null;
+    this.cdr.detectChanges();
   }
 
   // Bulk Actions
@@ -727,7 +715,7 @@ export class OwnerBookingsComponent implements OnInit {
 
     this.bookingService.bulkAction({ booking_ids: this.selectedBookingIds, action: 'approve' }).subscribe({
       next: (res) => {
-        this.alert.success('Bulk Approval Complete', res.message);
+        this.alert.toastSuccess('Selected requests approved successfully!');
         this.selectedBookingIds = [];
         this.loadBookings();
       },
@@ -753,7 +741,7 @@ export class OwnerBookingsComponent implements OnInit {
       })
       .subscribe({
         next: (res) => {
-          this.alert.success('Bulk Rejection Complete', res.message);
+          this.alert.toastSuccess('Selected requests rejected.');
           this.selectedBookingIds = [];
           this.loadBookings();
         },

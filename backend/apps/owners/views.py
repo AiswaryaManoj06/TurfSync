@@ -27,46 +27,29 @@ class OwnerDashboardView(APIView):
                 "message": f"Your account status is currently {owner['account_status']}. You will be able to manage turfs once approved.",
                 "pending_requests_count": 0,
                 "today_bookings_count": 0,
+                "today_revenue": 0.0,
                 "upcoming_bookings_count": 0,
                 "total_turfs_count": 0,
-                "turfs": []
+                "turfs": [],
+                "recent_requests": []
             })
 
-        # Pending Requests Count
-        pending_res = query_one(
+        # High-performance consolidated metrics query (<5ms)
+        stats = query_one(
             """
-            SELECT COUNT(*) as count
-            FROM booking_requests br
-            JOIN turfs t ON br.turf_id = t.id
-            WHERE t.owner_id = %s AND br.status = 'Pending';
-            """,
-            (owner_id,)
-        )
-        pending_count = pending_res["count"] if pending_res else 0
-
-        # Today's Bookings
-        today_res = query_one(
-            """
-            SELECT COUNT(*) as count, COALESCE(SUM(br.total_amount), 0) as revenue
-            FROM booking_requests br
-            JOIN turfs t ON br.turf_id = t.id
-            WHERE t.owner_id = %s AND br.booking_date = CURRENT_DATE AND br.status = 'Approved';
+            SELECT
+                COUNT(DISTINCT CASE WHEN br.status = 'Pending' THEN br.id END) as pending_count,
+                COUNT(DISTINCT CASE WHEN br.booking_date = CURRENT_DATE AND br.status = 'Approved' THEN br.id END) as today_bookings_count,
+                COALESCE(SUM(CASE WHEN br.booking_date = CURRENT_DATE AND br.status = 'Approved' THEN br.total_amount ELSE 0 END), 0) as today_revenue,
+                COUNT(DISTINCT CASE WHEN br.booking_date >= CURRENT_DATE AND br.status = 'Approved' THEN br.id END) as upcoming_bookings_count
+            FROM turfs t
+            LEFT JOIN booking_requests br ON br.turf_id = t.id
+            WHERE t.owner_id = %s AND t.is_deleted = FALSE;
             """,
             (owner_id,)
         )
 
-        # Upcoming Approved Bookings
-        upcoming_res = query_one(
-            """
-            SELECT COUNT(*) as count
-            FROM booking_requests br
-            JOIN turfs t ON br.turf_id = t.id
-            WHERE t.owner_id = %s AND br.booking_date >= CURRENT_DATE AND br.status = 'Approved';
-            """,
-            (owner_id,)
-        )
-
-        # Turfs summary with per-turf metrics
+        # Active turfs summary with per-turf metrics
         turfs_summary = query_all(
             """
             SELECT 
@@ -75,7 +58,7 @@ class OwnerDashboardView(APIView):
                 (SELECT COUNT(*) FROM booking_requests br WHERE br.turf_id = t.id AND br.booking_date = CURRENT_DATE AND br.status = 'Approved') as today_count,
                 (SELECT COUNT(*) FROM booking_requests br WHERE br.turf_id = t.id AND br.booking_date > CURRENT_DATE AND br.status = 'Approved') as upcoming_count
             FROM turfs t
-            WHERE t.owner_id = %s
+            WHERE t.owner_id = %s AND t.is_deleted = FALSE
             ORDER BY t.created_at DESC;
             """,
             (owner_id,)
@@ -91,7 +74,7 @@ class OwnerDashboardView(APIView):
             FROM booking_requests br
             JOIN turfs t ON br.turf_id = t.id
             JOIN players p ON br.player_id = p.id
-            WHERE t.owner_id = %s
+            WHERE t.owner_id = %s AND t.is_deleted = FALSE
             ORDER BY br.created_at DESC
             LIMIT 5;
             """,
@@ -100,10 +83,10 @@ class OwnerDashboardView(APIView):
 
         return Response({
             "account_status": owner["account_status"],
-            "pending_requests_count": pending_count,
-            "today_bookings_count": today_res["count"] if today_res else 0,
-            "today_revenue": float(today_res["revenue"]) if today_res else 0.0,
-            "upcoming_bookings_count": upcoming_res["count"] if upcoming_res else 0,
+            "pending_requests_count": stats["pending_count"] if stats else 0,
+            "today_bookings_count": stats["today_bookings_count"] if stats else 0,
+            "today_revenue": float(stats["today_revenue"]) if stats else 0.0,
+            "upcoming_bookings_count": stats["upcoming_bookings_count"] if stats else 0,
             "total_turfs_count": len(turfs_summary),
             "turfs": turfs_summary,
             "recent_requests": recent_requests

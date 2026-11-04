@@ -465,9 +465,9 @@ class AdminAuditLogsView(APIView):
 
 class AdminSoftDeleteOwnerView(APIView):
     """
-    Soft-deletes an owner and all their registered turfs.
-    Enforces business safety check: Cannot delete if any turf has upcoming approved bookings.
-    Records admin audit log and deactivates associated user account.
+    Soft-deletes an owner while preserving existing player bookings.
+    Notifies all players who have active bookings under this owner's turfs.
+    Records admin audit log and deactivates associated owner user account.
     """
     permission_classes = [IsAdminUserRole]
 
@@ -477,22 +477,20 @@ class AdminSoftDeleteOwnerView(APIView):
         if not owner or owner.get("is_deleted"):
             return Response({"error": "Owner not found or already deleted."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Safety Check: Block deletion if any turf of this owner has upcoming approved bookings
-        upcoming_approved = query_one(
+        prev_status = owner["account_status"]
+
+        # Find all players with active or pending bookings under this owner's turfs
+        affected_bookings = query_all(
             """
-            SELECT COUNT(*) as count
+            SELECT DISTINCT p.user_id as player_user_id, p.full_name as player_name,
+                   br.id as booking_id, br.booking_reference, br.booking_date, t.name as turf_name
             FROM booking_requests br
             JOIN turfs t ON br.turf_id = t.id
-            WHERE t.owner_id = %s AND br.status = 'Approved' AND br.booking_date >= CURRENT_DATE;
+            JOIN players p ON br.player_id = p.id
+            WHERE t.owner_id = %s AND br.booking_date >= CURRENT_DATE AND br.status IN ('Approved', 'Pending');
             """,
             (owner_id,)
         )
-        if upcoming_approved and upcoming_approved["count"] > 0:
-            return Response({
-                "error": f"Cannot delete owner '{owner['brand_name']}'. There are {upcoming_approved['count']} upcoming approved booking(s) across their turfs. Cancel or close those bookings first."
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        prev_status = owner["account_status"]
 
         with db_cursor(as_dict=True) as cur:
             # 1. Soft-delete owner
@@ -505,27 +503,42 @@ class AdminSoftDeleteOwnerView(APIView):
                 (f"[DELETED] {reason}", owner_id)
             )
 
-            # 2. Soft-delete associated user account
+            # 2. Deactivate associated owner user account
             cur.execute(
                 "UPDATE users SET is_deleted = TRUE, status = 'Inactive', updated_at = CURRENT_TIMESTAMP WHERE id = %s;",
                 (owner["user_id"],)
             )
 
-            # 3. Soft-delete all turfs belonging to this owner
+            # 3. Turfs under him are set to Inactive to prevent new bookings, but preserved for existing bookings
             cur.execute(
-                "UPDATE turfs SET is_deleted = TRUE, status = 'Inactive', updated_at = CURRENT_TIMESTAMP WHERE owner_id = %s;",
+                "UPDATE turfs SET status = 'Inactive', updated_at = CURRENT_TIMESTAMP WHERE owner_id = %s;",
                 (owner_id,)
             )
 
-            # 4. Insert Audit Log
+            # 4. Notify affected players regarding the venue ownership update
+            for b in affected_bookings:
+                cur.execute(
+                    """
+                    INSERT INTO notifications (user_id, title, message, type, reference_id, reference_type)
+                    VALUES (%s, %s, %s, 'VENUE_UPDATE', %s, 'booking');
+                    """,
+                    (
+                        b["player_user_id"],
+                        f"Notice: {b['turf_name']}",
+                        f"Notice regarding your booking {b['booking_reference']} on {b['booking_date']} at {b['turf_name']}: The facility management has been updated by administration. Your booking details remain safely recorded.",
+                        b["booking_id"]
+                    )
+                )
+
+            # 5. Insert Audit Log
             cur.execute(
                 """
                 INSERT INTO admin_audit_logs (admin_id, target_owner_id, action, previous_status, new_status, reason_or_note)
                 VALUES (%s, %s, 'DELETE_OWNER', %s, 'Deleted', %s);
                 """,
-                (request.user.id, owner_id, prev_status, reason)
+                (request.user.id, owner_id, prev_status, f"{reason} | {len(affected_bookings)} player(s) notified")
             )
 
         return Response({
-            "message": f"Owner '{owner['brand_name']}' and all associated turfs have been successfully deleted (soft-deleted)."
+            "message": f"Owner '{owner['brand_name']}' deleted. Registered turfs preserved as inactive, and {len(affected_bookings)} affected player(s) have been notified."
         })

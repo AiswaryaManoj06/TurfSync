@@ -8,6 +8,7 @@ import { BookingService } from '../../../core/services/booking.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { AlertService } from '../../../core/services/alert.service';
 import { Turf, Slot, AddOnItem } from '../../../core/models/models';
+import { getSportImage } from '../../../core/constants/turf-images';
 
 interface AvailableAddOn {
   name: string;
@@ -51,6 +52,7 @@ interface AvailableAddOn {
               <img
                 [src]="currentPhoto"
                 alt="{{ turf.name }}"
+                (error)="onPhotoError($event, turf.sport)"
                 class="w-100 object-fit-cover rounded-3 hero-image"
               />
               <span class="badge bg-dark-glass position-absolute top-0 start-0 m-3 px-3 py-2 fs-6">
@@ -65,10 +67,11 @@ interface AvailableAddOn {
             <div *ngIf="turf.photos && turf.photos.length > 1" class="d-flex gap-2 mt-2">
               <img
                 *ngFor="let p of turf.photos"
-                [src]="p"
+                [src]="getValidPhoto(p, turf.sport)"
+                (error)="onThumbError($event, turf.sport)"
                 class="gallery-thumb rounded"
-                [class.active-thumb]="p === currentPhoto"
-                (click)="currentPhoto = p"
+                [class.active-thumb]="getValidPhoto(p, turf.sport) === currentPhoto"
+                (click)="currentPhoto = getValidPhoto(p, turf.sport)"
               />
             </div>
 
@@ -606,11 +609,8 @@ export class TurfDetailViewComponent implements OnInit {
       next: (res) => {
         this.turf = res.turf;
         this.numberOfPlayers = Math.min(10, this.turf.max_players || 10);
-        if (this.turf.photos && this.turf.photos.length > 0) {
-          this.currentPhoto = this.turf.photos[0];
-        } else {
-          this.currentPhoto = this.getDefaultTurfImage(this.turf.sport);
-        }
+        const firstPhoto = this.turf.photos?.[0];
+        this.currentPhoto = this.getValidPhoto(firstPhoto, this.turf.sport);
         this.loadingTurf = false;
         this.cdr.detectChanges();
         this.loadSlots();
@@ -772,22 +772,34 @@ export class TurfDetailViewComponent implements OnInit {
     });
   }
 
+  onPhotoError(event: Event, sport?: string): void {
+    const fallback = getSportImage(sport);
+    this.currentPhoto = fallback;
+    const target = event.target as HTMLImageElement;
+    if (target) {
+      target.src = fallback;
+    }
+  }
+
+  onThumbError(event: Event, sport?: string): void {
+    const target = event.target as HTMLImageElement;
+    if (target) {
+      target.src = getSportImage(sport);
+    }
+  }
+
   goBack(): void {
     this.router.navigate(['/search']);
   }
 
-  getDefaultTurfImage(sport: string): string {
-    switch (sport) {
-      case 'Football':
-        return 'https://images.unsplash.com/photo-1529900248061-576b288a6984?w=800&auto=format&fit=crop&q=80';
-      case 'Cricket':
-        return 'https://images.unsplash.com/photo-1531415074868-036b1c57e329?w=800&auto=format&fit=crop&q=80';
-      case 'Badminton':
-        return 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800&auto=format&fit=crop&q=80';
-      case 'Basketball':
-        return 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&auto=format&fit=crop&q=80';
-      default:
-        return 'https://images.unsplash.com/photo-1529900248061-576b288a6984?w=800&auto=format&fit=crop&q=80';
+  getValidPhoto(photoUrl?: string, sport?: string): string {
+    if (photoUrl && !photoUrl.includes('unsplash.com')) {
+      return photoUrl;
     }
+    return getSportImage(sport);
+  }
+
+  getDefaultTurfImage(sport: string): string {
+    return getSportImage(sport);
   }
 }

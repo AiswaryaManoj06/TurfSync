@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, adminGuard, ownerGuard, approvedOwnerGuard, playerGuard } from './core/guards/auth.guard';
+import { authGuard, adminGuard, ownerGuard, approvedOwnerGuard, playerGuard, playerOrGuestGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   // Public Discovery & Home
@@ -10,10 +10,12 @@ export const routes: Routes = [
   },
   {
     path: 'search',
+    canActivate: [playerOrGuestGuard],
     loadComponent: () => import('./features/player/search/player-search.component').then((m) => m.PlayerSearchComponent)
   },
   {
     path: 'turfs/:id',
+    canActivate: [playerOrGuestGuard],
     loadComponent: () => import('./features/player/turf-details/turf-detail-view.component').then((m) => m.TurfDetailViewComponent)
   },
 

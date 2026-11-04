@@ -14,7 +14,7 @@ import { User, NotificationItem } from '../../core/models/models';
     <header class="app-header">
       <div class="header-container">
         <!-- Brand Logo -->
-        <a routerLink="/" class="brand-link">
+        <a [routerLink]="currentUser?.role === 'owner' ? '/owner/dashboard' : (currentUser?.role === 'admin' ? '/admin/dashboard' : '/search')" class="brand-link">
           <div class="brand-icon">
             <i class="bi bi-geo-alt-fill"></i>
           </div>
@@ -32,7 +32,8 @@ import { User, NotificationItem } from '../../core/models/models';
           <a *ngIf="currentUser?.role === 'owner'" routerLink="/owner/dashboard" routerLinkActive="active" class="nav-item">
             <i class="bi bi-speedometer2"></i> Owner Portal
           </a>
-          <a routerLink="/search" routerLinkActive="active" class="nav-item">
+          <!-- Explore Turfs visible only to Player and unauthenticated visitors for registration, hidden for Turf Owner and Admin -->
+          <a *ngIf="!currentUser || currentUser?.role === 'player'" routerLink="/search" routerLinkActive="active" class="nav-item">
             <i class="bi bi-search"></i> Explore Turfs
           </a>
           <a *ngIf="currentUser?.role === 'player'" routerLink="/player/my-bookings" routerLinkActive="active" class="nav-item">

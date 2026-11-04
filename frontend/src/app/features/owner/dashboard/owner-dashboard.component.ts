@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -46,6 +46,12 @@ import { AuthService } from '../../../core/services/auth.service';
         </div>
       </div>
 
+      <!-- Loading Spinner -->
+      <div *ngIf="loading" class="text-center py-5">
+        <div class="spinner"></div> Loading arena operations...
+      </div>
+
+      <ng-container *ngIf="!loading">
       <!-- Stats Grid -->
       <div class="stats-grid">
         <div class="stat-card pending">
@@ -178,9 +184,12 @@ import { AuthService } from '../../../core/services/auth.service';
           </div>
         </div>
       </div>
+      </ng-container>
     </div>
   `,
   styles: [`
+    .spinner { width: 18px; height: 18px; border: 2px solid #059669; border-top-color: transparent; border-radius: 50%; display: inline-block; animation: spin 1s linear infinite; vertical-align: middle; margin-right: 0.5rem; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
     .notice-banner {
       display: flex;
       align-items: flex-start;
@@ -337,12 +346,27 @@ import { AuthService } from '../../../core/services/auth.service';
 })
 export class OwnerDashboardComponent implements OnInit {
   dashboardData: any = null;
+  loading = true;
 
-  constructor(private http: HttpClient, public auth: AuthService) {}
+  constructor(
+    private http: HttpClient,
+    public auth: AuthService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
+    this.loading = true;
+    this.cdr.detectChanges();
     this.http.get<any>(`${environment.apiUrl}/owner/dashboard/`).subscribe({
-      next: (res) => (this.dashboardData = res)
+      next: (res) => {
+        this.dashboardData = res;
+        this.loading = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.loading = false;
+        this.cdr.detectChanges();
+      }
     });
   }
 }

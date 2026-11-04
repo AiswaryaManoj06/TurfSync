@@ -127,8 +127,23 @@ class CreateSlotsView(APIView):
         if turf["status"] != "Active":
             return Response({"error": "Cannot create slots for an Inactive turf."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if max_players_override and int(max_players_override) > turf["max_players"]:
-            return Response({"error": f"Slot max players ({max_players_override}) cannot exceed turf max players ({turf['max_players']})."}, status=status.HTTP_400_BAD_REQUEST)
+        if max_players_override is not None and str(max_players_override).strip() != "":
+            try:
+                mp_val = int(max_players_override)
+                if mp_val <= 0:
+                    return Response({"error": "Max players override must be a positive integer greater than 0. Negative numbers are not allowed."}, status=status.HTTP_400_BAD_REQUEST)
+                if mp_val > turf["max_players"]:
+                    return Response({"error": f"Slot max players ({mp_val}) cannot exceed turf max players ({turf['max_players']})."}, status=status.HTTP_400_BAD_REQUEST)
+            except (ValueError, TypeError):
+                return Response({"error": "Max players override must be a valid positive integer."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if price_override is not None and str(price_override).strip() != "":
+            try:
+                po_val = float(price_override)
+                if po_val <= 0:
+                    return Response({"error": "Price override must be a positive number greater than 0. Negative numbers are not allowed."}, status=status.HTTP_400_BAD_REQUEST)
+            except (ValueError, TypeError):
+                return Response({"error": "Price override must be a valid positive number."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Parse Dates and Times
         try:
@@ -241,7 +256,7 @@ class BlockSlotView(APIView):
     def post(self, request):
         owner_id = request.user.raw_data.get("owner_id")
         slot_id = request.data.get("slot_id")
-        reason = (request.data.get("block_reason") or "").strip()
+        reason = (request.data.get("block_reason") or request.data.get("reason") or "").strip()
 
         if not slot_id:
             return Response({"error": "slot_id is required."}, status=status.HTTP_400_BAD_REQUEST)

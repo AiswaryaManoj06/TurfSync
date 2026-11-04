@@ -163,15 +163,22 @@ class TurfSyncApiWorkflowTests(unittest.TestCase):
         p_token = p_login.json()["token"]
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {p_token}")
 
-        # Request an Open slot for Turf 1
-        open_slot = query_one("SELECT id, slot_date FROM slots WHERE turf_id = 1 AND status = 'Open' ORDER BY id ASC;")
-        self.assertIsNotNone(open_slot, "Should have at least one Open slot for Turf 1")
+        # Request an Open slot (today or future)
+        open_slot = query_one("SELECT id, turf_id, slot_date FROM slots WHERE status = 'Open' AND slot_date >= CURRENT_DATE ORDER BY id ASC;")
+        if not open_slot:
+            # Create a slot if none is open
+            execute_update(
+                "INSERT INTO slots (turf_id, slot_date, start_time, end_time, duration_minutes, effective_price, status) "
+                "VALUES (1, CURRENT_DATE + INTERVAL '1 day', '10:00:00', '11:00:00', 60, 1200, 'Open');"
+            )
+            open_slot = query_one("SELECT id, turf_id, slot_date FROM slots WHERE status = 'Open' AND slot_date >= CURRENT_DATE ORDER BY id ASC;")
+        self.assertIsNotNone(open_slot, "Should have at least one Open slot")
 
         req_resp = self.client.post("/api/bookings/request/", {
-            "turf_id": 1,
+            "turf_id": open_slot["turf_id"],
             "booking_date": str(open_slot["slot_date"]),
             "slot_ids": [open_slot["id"]],
-            "number_of_players": 8,
+            "number_of_players": 4,
             "team_name": "Test Tigers",
             "payment_preference": "Pay at Turf",
             "rules_accepted": True

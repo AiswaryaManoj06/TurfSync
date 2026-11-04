@@ -763,20 +763,31 @@ export class RegisterOwnerComponent implements OnInit {
       return;
     }
 
-    const selectedState = this.states.find((s) => s.id === sId);
     this.ownerForm.patchValue({ city_id: '' });
+
+    // Instant local database cache filter (0ms - no waiting)
+    const local = this.cities.filter((c) => c.state_id === sId);
+    if (local && local.length > 0) {
+      this.filteredCities = local;
+      this.loadingCities = false;
+      this.cdr.detectChanges();
+      return;
+    }
+
+    const selectedState = this.states.find((s) => s.id === sId);
     this.loadingCities = true;
 
-    // Dynamically fetch cities from external location API
+    // Dynamically fetch cities from external location API only when local cache is empty
     this.auth.getExternalCities(sId, selectedState?.name).subscribe({
       next: (res) => {
         this.filteredCities = res.cities || [];
         this.loadingCities = false;
+        this.cdr.detectChanges();
       },
       error: () => {
-        // Fallback to local database cache
-        this.filteredCities = this.cities.filter((c) => c.state_id === sId);
+        this.filteredCities = [];
         this.loadingCities = false;
+        this.cdr.detectChanges();
       }
     });
   }

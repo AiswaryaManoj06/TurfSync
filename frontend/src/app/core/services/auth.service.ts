@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap } from 'rxjs';
+import { BehaviorSubject, Observable, tap, shareReplay } from 'rxjs';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { User, AuthResponse, LocationsResponse, City } from '../models/models';
@@ -86,18 +86,33 @@ export class AuthService {
     );
   }
 
+  private locationsCache$?: Observable<LocationsResponse>;
+  private externalCitiesCache: Map<string, Observable<{ cities: City[]; count: number; source: string }>> = new Map();
+
   getLocations(): Observable<LocationsResponse> {
-    return this.http.get<LocationsResponse>(`${this.apiUrl}/locations/`);
+    if (!this.locationsCache$) {
+      this.locationsCache$ = this.http.get<LocationsResponse>(`${this.apiUrl}/locations/`).pipe(
+        shareReplay(1)
+      );
+    }
+    return this.locationsCache$;
   }
 
   getExternalCities(stateId?: number, stateName?: string): Observable<{ cities: City[]; count: number; source: string }> {
     let params = '';
+    const cacheKey = `${stateId || ''}_${stateName || ''}`;
     if (stateId) {
       params = `?state_id=${stateId}`;
     } else if (stateName) {
       params = `?state=${encodeURIComponent(stateName)}`;
     }
-    return this.http.get<{ cities: City[]; count: number; source: string }>(`${this.apiUrl}/external-cities/${params}`);
+    if (!this.externalCitiesCache.has(cacheKey)) {
+      const obs$ = this.http.get<{ cities: City[]; count: number; source: string }>(`${this.apiUrl}/external-cities/${params}`).pipe(
+        shareReplay(1)
+      );
+      this.externalCitiesCache.set(cacheKey, obs$);
+    }
+    return this.externalCitiesCache.get(cacheKey)!;
   }
 
   fetchProfile(): Observable<{ user: User }> {

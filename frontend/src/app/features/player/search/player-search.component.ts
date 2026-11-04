@@ -5,6 +5,7 @@ import { RouterModule, Router } from '@angular/router';
 import { TurfService } from '../../../core/services/turf.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { Turf, City, State } from '../../../core/models/models';
+import { getSportImage } from '../../../core/constants/turf-images';
 
 @Component({
   selector: 'app-player-search',
@@ -198,6 +199,7 @@ import { Turf, City, State } from '../../../core/models/models';
                     <img
                       [src]="turf.photos && turf.photos.length > 0 ? turf.photos[0] : getDefaultTurfImage(turf.sport)"
                       alt="{{ turf.name }}"
+                      (error)="onPhotoError($event, turf.sport)"
                       class="card-img-top object-fit-cover"
                       style="height: 190px;"
                     />
@@ -532,21 +534,14 @@ export class PlayerSearchComponent implements OnInit {
     this.applyFilters();
   }
 
-  getDefaultTurfImage(sport: string): string {
-    switch (sport) {
-      case 'Football':
-        return 'https://images.unsplash.com/photo-1529900248061-576b288a6984?w=600&auto=format&fit=crop&q=80';
-      case 'Cricket':
-        return 'https://images.unsplash.com/photo-1531415074868-036b1c57e329?w=600&auto=format&fit=crop&q=80';
-      case 'Badminton':
-        return 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=600&auto=format&fit=crop&q=80';
-      case 'Basketball':
-        return 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=600&auto=format&fit=crop&q=80';
-      case 'Tennis':
-      case 'Pickleball':
-        return 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=600&auto=format&fit=crop&q=80';
-      default:
-        return 'https://images.unsplash.com/photo-1529900248061-576b288a6984?w=600&auto=format&fit=crop&q=80';
+  onPhotoError(event: Event, sport?: string): void {
+    const target = event.target as HTMLImageElement;
+    if (target) {
+      target.src = getSportImage(sport);
     }
+  }
+
+  getDefaultTurfImage(sport: string): string {
+    return getSportImage(sport);
   }
 }

@@ -1,18 +1,4 @@
-# TurfSync REST API Reference
-
-Base URL: `http://localhost:8080/api`
-
-All authenticated endpoints require an `Authorization: Bearer <JWT>` header.
-
----
-
-## 1. Authentication (`/api/auth/`)
-
-| Method | Endpoint | Description | Auth Required |
-|---|---|---|---|
-| POST | `/api/auth/register/owner/` | Multipart form submission for owner registration (age 18+, PDF/image docs) | Public |
-| POST | `/api/auth/register/player/` | Player registration (age 16+, favorite sports) | Public |
-| POST | `/api/auth/login/` | User credentials verification, returns JWT and user profile | Public |
+th/login/` | User credentials verification, returns JWT and user profile | Public |
 | GET | `/api/auth/me/` | Current authenticated user profile | Yes |
 | GET | `/api/auth/locations/` | Geo dataset (countries, states, cities) | Public |
 
@@ -82,3 +68,18 @@ Role Required: `admin`
 | GET | `/api/notifications/` | List user's notifications and unread count | Authenticated |
 | POST | `/api/notifications/<id>/read/` | Mark notification as read | Authenticated |
 | POST | `/api/notifications/mark-all-read/` | Mark all unread notifications as read | Authenticated |
+# TurfSync REST API Reference
+
+Base URL: `http://localhost:8080/api`
+
+All authenticated endpoints require an `Authorization: Bearer <JWT>` header.
+
+---
+
+## 1. Authentication (`/api/auth/`)
+
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| POST | `/api/auth/register/owner/` | Multipart form submission for owner registration (age 18+, PDF/image docs) | Public |
+| POST | `/api/auth/register/player/` | Player registration (age 16+, favorite sports) | Public |
+| POST | `/api/au

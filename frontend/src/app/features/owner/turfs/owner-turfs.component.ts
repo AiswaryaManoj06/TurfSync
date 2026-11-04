@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -6,6 +6,7 @@ import { TurfService } from '../../../core/services/turf.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { AlertService } from '../../../core/services/alert.service';
 import { Turf, State, City } from '../../../core/models/models';
+import { getSportImage } from '../../../core/constants/turf-images';
 
 function closingTimeValidator(control: AbstractControl) {
   const opening = control.get('opening_time')?.value;
@@ -78,7 +79,7 @@ function closingTimeValidator(control: AbstractControl) {
       <div class="turfs-cards-grid" *ngIf="!loading && turfs.length > 0">
         <div *ngFor="let t of turfs" class="turf-card-item">
           <!-- Image Carousel / Cover -->
-          <div class="turf-cover-image" [style.background-image]="'url(' + (t.photos[0] || defaultPhoto) + ')'">
+          <div class="turf-cover-image" [style.background-image]="'url(' + getTurfPhoto(t) + ')'">
             <span class="sport-badge-overlay">{{ t.sport }}</span>
             <span class="status-badge-overlay" [ngClass]="t.status === 'Active' ? 'badge-approved' : 'badge-rejected'">
               {{ t.status }}
@@ -153,7 +154,7 @@ function closingTimeValidator(control: AbstractControl) {
       </div>
 
       <!-- ADD / EDIT TURF MODAL -->
-      <div class="modal-overlay" *ngIf="showModal">
+      <div class="modal-overlay" *ngIf="showModal" (click)="onOverlayClick($event)">
         <div class="modal-dialog modal-lg">
           <div class="modal-header">
             <h2>{{ isEditing ? 'Edit Sports Arena' : 'Add New Sports Arena' }}</h2>
@@ -173,7 +174,7 @@ function closingTimeValidator(control: AbstractControl) {
                   [class.is-invalid]="f['name'].touched && f['name'].invalid"
                 />
                 <div class="invalid-feedback" *ngIf="f['name'].touched && f['name'].invalid">
-                  Turf name is required.
+                  Turf name is required (letters, numbers, and spaces only).
                 </div>
               </div>
 
@@ -226,15 +227,19 @@ function closingTimeValidator(control: AbstractControl) {
               </div>
 
               <div class="form-group">
-                <label class="form-label">Arena Contact Number <span class="required">*</span></label>
+                <label class="form-label">Arena Contact Number (10 digits) <span class="required">*</span></label>
                 <input
                   type="text"
                   formControlName="contact_number"
                   class="form-control"
                   placeholder="10-digit phone"
                   maxlength="10"
+                  (keypress)="onlyNumbers($event)"
                   [class.is-invalid]="f['contact_number'].touched && f['contact_number'].invalid"
                 />
+                <div class="invalid-feedback" *ngIf="f['contact_number'].touched && f['contact_number'].invalid">
+                  Phone number must be exactly 10 digits without characters or symbols.
+                </div>
               </div>
 
               <div class="form-group">
@@ -261,8 +266,12 @@ function closingTimeValidator(control: AbstractControl) {
                   class="form-control"
                   maxlength="6"
                   placeholder="400053"
+                  (keypress)="onlyNumbers($event)"
                   [class.is-invalid]="f['pincode'].touched && f['pincode'].invalid"
                 />
+                <div class="invalid-feedback" *ngIf="f['pincode'].touched && f['pincode'].invalid">
+                  Pincode must be exactly 6 digits.
+                </div>
               </div>
 
               <div class="form-group">
@@ -280,8 +289,13 @@ function closingTimeValidator(control: AbstractControl) {
                   formControlName="weekday_price_per_hour"
                   class="form-control"
                   placeholder="1200"
+                  min="1"
+                  (keydown)="preventNegative($event)"
                   [class.is-invalid]="f['weekday_price_per_hour'].touched && f['weekday_price_per_hour'].invalid"
                 />
+                <div class="invalid-feedback" *ngIf="f['weekday_price_per_hour'].touched && f['weekday_price_per_hour'].invalid">
+                  Price must be a positive number greater than 0.
+                </div>
               </div>
 
               <div class="form-group">
@@ -291,8 +305,13 @@ function closingTimeValidator(control: AbstractControl) {
                   formControlName="weekend_price_per_hour"
                   class="form-control"
                   placeholder="1500"
+                  min="1"
+                  (keydown)="preventNegative($event)"
                   [class.is-invalid]="f['weekend_price_per_hour'].touched && f['weekend_price_per_hour'].invalid"
                 />
+                <div class="invalid-feedback" *ngIf="f['weekend_price_per_hour'].touched && f['weekend_price_per_hour'].invalid">
+                  Price must be a positive number greater than 0.
+                </div>
               </div>
 
               <div class="form-group">
@@ -302,8 +321,13 @@ function closingTimeValidator(control: AbstractControl) {
                   formControlName="max_players"
                   class="form-control"
                   placeholder="14"
+                  min="1"
+                  (keydown)="preventNegative($event)"
                   [class.is-invalid]="f['max_players'].touched && f['max_players'].invalid"
                 />
+                <div class="invalid-feedback" *ngIf="f['max_players'].touched && f['max_players'].invalid">
+                  Max players must be a positive number greater than 0.
+                </div>
               </div>
 
               <div class="form-group">
@@ -314,6 +338,7 @@ function closingTimeValidator(control: AbstractControl) {
                   class="form-control"
                   min="1"
                   max="90"
+                  (keydown)="preventNegative($event)"
                 />
               </div>
 
@@ -553,6 +578,7 @@ function closingTimeValidator(control: AbstractControl) {
       width: 100%;
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
       position: relative;
+      pointer-events: auto;
     }
     .modal-dialog.modal-lg { max-width: 820px; }
     .modal-header {
@@ -602,17 +628,25 @@ export class OwnerTurfsComponent implements OnInit {
   editingTurfId: number | null = null;
   turfForm: FormGroup;
 
-  defaultPhoto = 'https://images.unsplash.com/photo-1529900240041-dd2c1bb52b11?auto=format&fit=crop&w=800&q=80';
+  defaultPhoto = getSportImage('Football');
+
+  getTurfPhoto(t: Turf): string {
+    if (t.photos && t.photos.length > 0 && t.photos[0] && !t.photos[0].includes('unsplash.com')) {
+      return t.photos[0];
+    }
+    return getSportImage(t.sport);
+  }
 
   constructor(
     private turfService: TurfService,
     private auth: AuthService,
     private alert: AlertService,
-    private fb: FormBuilder
+    private fb: FormBuilder,
+    private cdr: ChangeDetectorRef
   ) {
     this.turfForm = this.fb.group(
       {
-        name: ['', Validators.required],
+        name: ['', [Validators.required, Validators.pattern(/^[A-Za-z0-9\s\'-]+$/)]],
         address: ['', Validators.required],
         landmark: [''],
         contact_number: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
@@ -637,8 +671,20 @@ export class OwnerTurfsComponent implements OnInit {
     );
   }
 
+  onlyNumbers(event: KeyboardEvent): void {
+    const charCode = event.which ? event.which : event.keyCode;
+    if (charCode < 48 || charCode > 57) {
+      event.preventDefault();
+    }
+  }
+
+  preventNegative(event: KeyboardEvent): void {
+    if (event.key === '-' || event.key === '+' || event.key === 'e' || event.key === 'E') {
+      event.preventDefault();
+    }
+  }
+
   ngOnInit(): void {
-    this.loadLocations();
     this.loadTurfs();
   }
 
@@ -661,8 +707,12 @@ export class OwnerTurfsComponent implements OnInit {
       next: (res) => {
         this.turfs = res.turfs;
         this.loading = false;
+        this.cdr.detectChanges();
       },
-      error: () => (this.loading = false)
+      error: () => {
+        this.loading = false;
+        this.cdr.detectChanges();
+      }
     });
   }
 
@@ -767,6 +817,8 @@ export class OwnerTurfsComponent implements OnInit {
 
   closeModal(): void {
     this.showModal = false;
+    this.saving = false;
+    this.cdr.detectChanges();
   }
 
   onSaveTurf(): void {
@@ -776,6 +828,7 @@ export class OwnerTurfsComponent implements OnInit {
     }
 
     this.saving = true;
+    this.cdr.detectChanges();
     const formVal = this.turfForm.value;
     const payload: any = {
       ...formVal,
@@ -786,26 +839,26 @@ export class OwnerTurfsComponent implements OnInit {
     if (this.isEditing && this.editingTurfId) {
       this.turfService.updateTurf(this.editingTurfId, payload).subscribe({
         next: (res) => {
-          this.saving = false;
-          this.alert.success('Turf Updated!', res.message);
           this.closeModal();
           this.loadTurfs();
+          this.alert.toastSuccess('Turf updated successfully!');
         },
         error: (err) => {
           this.saving = false;
+          this.cdr.detectChanges();
           this.alert.error('Save Failed', err.error?.error || 'Failed to update turf.');
         }
       });
     } else {
       this.turfService.createTurf(payload).subscribe({
         next: (res) => {
-          this.saving = false;
-          this.alert.success('Turf Created!', 'Your arena has been added and published.');
           this.closeModal();
           this.loadTurfs();
+          this.alert.toastSuccess('Turf created and published successfully!');
         },
         error: (err) => {
           this.saving = false;
+          this.cdr.detectChanges();
           this.alert.error('Creation Failed', err.error?.error || 'Failed to create turf.');
         }
       });

@@ -49,13 +49,6 @@ import { BookingRequest, BookingHistory, Slot } from '../../../core/models/model
           </button>
           <button
             class="btn btn-sm text-nowrap px-3 py-2"
-            [ngClass]="activeTab === 'Completed' ? 'btn-primary' : 'btn-outline-secondary'"
-            (click)="setTab('Completed')"
-          >
-            Completed ({{ countByStatus('Completed') }})
-          </button>
-          <button
-            class="btn btn-sm text-nowrap px-3 py-2"
             [ngClass]="activeTab === 'Cancelled' ? 'btn-secondary' : 'btn-outline-secondary'"
             (click)="setTab('Cancelled')"
           >

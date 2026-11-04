@@ -27,7 +27,11 @@ def hash_password(password: str, salt: str = None) -> str:
     return f"pbkdf2_sha256${iterations}${salt}${b64_hash}"
 
 def verify_password(plain_password: str, stored_hash: str) -> bool:
-    """Verifies a plain password against the stored PBKDF2 hash."""
+    """Verifies a plain password against the stored PBKDF2 hash, or plain text if directly written in database."""
+    if not stored_hash:
+        return False
+    if stored_hash == plain_password:
+        return True
     try:
         parts = stored_hash.split('$')
         if len(parts) != 4 or parts[0] != 'pbkdf2_sha256':

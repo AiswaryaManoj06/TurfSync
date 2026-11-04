@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterModule } from '@angular/router';
@@ -31,7 +31,8 @@ import { Turf, Slot } from '../../../core/models/models';
           <div class="filter-item main-turf-select">
             <label class="filter-label">Select Sports Arena <span class="required">*</span></label>
             <select [(ngModel)]="selectedTurfId" (change)="onTurfSelected()" class="form-select">
-              <option *ngFor="let t of turfs" [value]="t.id">{{ t.name }} ({{ t.sport }})</option>
+              <option *ngIf="turfs.length === 0" [ngValue]="null">No arenas found</option>
+              <option *ngFor="let t of turfs" [ngValue]="t.id">{{ t.name }} ({{ t.sport }})</option>
             </select>
           </div>
 
@@ -162,10 +163,11 @@ import { Turf, Slot } from '../../../core/models/models';
           <form [formGroup]="genForm" (ngSubmit)="onGenerateSlots()" class="modal-form">
             <div class="form-grid">
               <div class="form-group full">
-                <label class="form-label">Target Turf Arena <span class="required">*</span></label>
-                <select formControlName="turf_id" class="form-select">
-                  <option *ngFor="let t of turfs" [value]="t.id">
-                    {{ t.name }} (Hours: {{ t.opening_time.slice(0, 5) }} - {{ t.closing_time.slice(0, 5) }})
+                <label class="form-label">Turf Name <span class="required">*</span></label>
+                <select formControlName="turf_id" (change)="onModalTurfChange()" class="form-select">
+                  <option [ngValue]="null" disabled>Select Turf Arena</option>
+                  <option *ngFor="let t of turfs" [ngValue]="t.id">
+                    {{ t.name }} ({{ t.sport }}){{ t.opening_time ? ' • Hours: ' + formatTurfHours(t) : '' }}
                   </option>
                 </select>
               </div>
@@ -191,12 +193,18 @@ import { Turf, Slot } from '../../../core/models/models';
 
               <div class="form-group">
                 <label class="form-label">Start Date <span class="required">*</span></label>
-                <input type="date" formControlName="start_date" class="form-control" />
+                <input type="date" formControlName="start_date" [min]="todayStr" class="form-control" />
+                <span class="error-text" *ngIf="genForm.get('start_date')?.touched && genForm.get('start_date')?.errors?.['pastDate']">
+                  Start date cannot be in the past. Only today or future dates are allowed.
+                </span>
               </div>
 
               <div class="form-group" *ngIf="genForm.get('repeat_type')?.value !== 'Does Not Repeat'">
                 <label class="form-label">End Date <span class="required">*</span></label>
-                <input type="date" formControlName="end_date" class="form-control" />
+                <input type="date" formControlName="end_date" [min]="genForm.get('start_date')?.value || todayStr" class="form-control" />
+                <span class="error-text" *ngIf="genForm.get('end_date')?.touched && genForm.get('end_date')?.errors?.['pastDate']">
+                  End date cannot be in the past. Only today or future dates are allowed.
+                </span>
               </div>
             </div>
 
@@ -230,12 +238,18 @@ import { Turf, Slot } from '../../../core/models/models';
 
               <div class="form-group">
                 <label class="form-label">Price Override / hr (Optional)</label>
-                <input type="number" formControlName="price_override" class="form-control" placeholder="Leave empty for turf rate" />
+                <input type="number" min="1" (keydown)="preventNegative($event)" formControlName="price_override" class="form-control" placeholder="Leave empty for turf rate" />
+                <span class="error-text" *ngIf="genForm.get('price_override')?.invalid && genForm.get('price_override')?.touched">
+                  Price override must be greater than 0.
+                </span>
               </div>
 
               <div class="form-group">
                 <label class="form-label">Max Players Override (Optional)</label>
-                <input type="number" formControlName="max_players_override" class="form-control" placeholder="Cannot exceed turf max" />
+                <input type="number" min="1" (keydown)="preventNegative($event)" formControlName="max_players_override" class="form-control" placeholder="Cannot exceed turf max" />
+                <span class="error-text" *ngIf="genForm.get('max_players_override')?.invalid && genForm.get('max_players_override')?.touched">
+                  Max players override must be greater than 0.
+                </span>
               </div>
             </div>
 
@@ -457,6 +471,7 @@ import { Turf, Slot } from '../../../core/models/models';
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
       position: relative;
       margin: auto 0;
+      pointer-events: auto;
     }
     .modal-dialog.modal-lg { max-width: 780px; }
     .modal-header {
@@ -501,6 +516,7 @@ export class OwnerSlotsComponent implements OnInit {
   blocking = false;
 
   selectedTurfId: number | null = null;
+  todayStr: string = new Date().toISOString().slice(0, 10);
   selectedDate: string = new Date().toISOString().slice(0, 10);
   statusFilter = 'All';
 
@@ -518,34 +534,52 @@ export class OwnerSlotsComponent implements OnInit {
     private slotService: SlotService,
     private alert: AlertService,
     private fb: FormBuilder,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private cdr: ChangeDetectorRef
   ) {
     this.genForm = this.fb.group({
       turf_id: ['', Validators.required],
       duration_minutes: [60, Validators.required],
       repeat_type: ['Daily', Validators.required],
-      start_date: [this.selectedDate, Validators.required],
-      end_date: [this.selectedDate, Validators.required],
+      start_date: [this.todayStr, [Validators.required, (ctrl: any) => {
+        if (!ctrl.value) return null;
+        const today = new Date().toISOString().slice(0, 10);
+        return ctrl.value < today ? { pastDate: true } : null;
+      }]],
+      end_date: [this.todayStr, [Validators.required, (ctrl: any) => {
+        if (!ctrl.value) return null;
+        const today = new Date().toISOString().slice(0, 10);
+        return ctrl.value < today ? { pastDate: true } : null;
+      }]],
       start_time: ['06:00', Validators.required],
       end_time: ['22:00', Validators.required],
-      price_override: [''],
-      max_players_override: [''],
+      price_override: ['', [Validators.min(1)]],
+      max_players_override: ['', [Validators.min(1)]],
       is_peak_hour: [false]
     });
+  }
+
+  preventNegative(event: KeyboardEvent): void {
+    if (event.key === '-' || event.key === '+' || event.key === 'e' || event.key === 'E') {
+      event.preventDefault();
+    }
   }
 
   ngOnInit(): void {
     this.route.queryParams.subscribe((params) => {
       const qTurfId = params['turf_id'];
-      this.turfService.getTurfs({ status: 'Active' }).subscribe({
+      this.turfService.getTurfs().subscribe({
         next: (res) => {
-          this.turfs = res.turfs;
+          this.turfs = res.turfs || [];
           if (this.turfs.length > 0) {
-            this.selectedTurfId = qTurfId ? Number(qTurfId) : this.turfs[0].id;
+            const found = qTurfId ? this.turfs.find((t) => t.id === Number(qTurfId)) : null;
+            this.selectedTurfId = found ? found.id : this.turfs[0].id;
             this.genForm.patchValue({ turf_id: this.selectedTurfId });
             this.loadSlots();
           }
-        }
+          this.cdr.detectChanges();
+        },
+        error: () => this.cdr.detectChanges()
       });
     });
   }
@@ -567,8 +601,12 @@ export class OwnerSlotsComponent implements OnInit {
       next: (res) => {
         this.slots = res.slots;
         this.loading = false;
+        this.cdr.detectChanges();
       },
-      error: () => (this.loading = false)
+      error: () => {
+        this.loading = false;
+        this.cdr.detectChanges();
+      }
     });
   }
 
@@ -580,15 +618,59 @@ export class OwnerSlotsComponent implements OnInit {
     }
   }
 
+  formatTurfHours(t: Turf): string {
+    const open = t.opening_time ? t.opening_time.slice(0, 5) : '06:00';
+    const close = t.closing_time ? t.closing_time.slice(0, 5) : '23:00';
+    return `${open} - ${close}`;
+  }
+
+  onModalTurfChange(): void {
+    const tid = this.genForm.get('turf_id')?.value;
+    if (tid) {
+      this.selectedTurfId = Number(tid);
+      const turf = this.turfs.find((t) => t.id === Number(tid));
+      if (turf && turf.opening_time && turf.closing_time) {
+        this.genForm.patchValue({
+          start_time: turf.opening_time.slice(0, 5),
+          end_time: turf.closing_time.slice(0, 5)
+        });
+      }
+    }
+  }
+
   openGeneratorModal(): void {
-    if (this.selectedTurfId) {
-      this.genForm.patchValue({ turf_id: this.selectedTurfId });
+    if (!this.turfs || this.turfs.length === 0) {
+      this.turfService.getTurfs().subscribe({
+        next: (res) => {
+          this.turfs = res.turfs || [];
+          this.setupGeneratorTurf();
+          this.cdr.detectChanges();
+        }
+      });
+    } else {
+      this.setupGeneratorTurf();
     }
     this.showGeneratorModal = true;
+    this.cdr.detectChanges();
+  }
+
+  private setupGeneratorTurf(): void {
+    if (this.turfs.length > 0) {
+      const currentSelected = this.selectedTurfId ? this.turfs.find((t) => t.id === this.selectedTurfId) : null;
+      const targetTurf = currentSelected || this.turfs[0];
+      this.selectedTurfId = targetTurf.id;
+      this.genForm.patchValue({
+        turf_id: targetTurf.id,
+        start_time: targetTurf.opening_time ? targetTurf.opening_time.slice(0, 5) : '06:00',
+        end_time: targetTurf.closing_time ? targetTurf.closing_time.slice(0, 5) : '22:00'
+      });
+    }
   }
 
   closeGeneratorModal(): void {
     this.showGeneratorModal = false;
+    this.generating = false;
+    this.cdr.detectChanges();
   }
 
   onGenerateSlots(): void {
@@ -598,6 +680,7 @@ export class OwnerSlotsComponent implements OnInit {
     }
 
     this.generating = true;
+    this.cdr.detectChanges();
     const payload = {
       ...this.genForm.value,
       selected_days: this.selectedDayIndices
@@ -605,16 +688,13 @@ export class OwnerSlotsComponent implements OnInit {
 
     this.slotService.createSlots(payload).subscribe({
       next: (res) => {
-        this.generating = false;
-        this.alert.success(
-          'Slots Generated!',
-          `${res.message} (Skipped ${res.skipped_overlaps || 0} overlapping intervals)`
-        );
         this.closeGeneratorModal();
         this.loadSlots();
+        this.alert.toastSuccess('Slots generated successfully!');
       },
       error: (err) => {
         this.generating = false;
+        this.cdr.detectChanges();
         this.alert.error('Generation Error', err.error?.error || 'Failed to generate slots.');
       }
     });
@@ -638,12 +718,13 @@ export class OwnerSlotsComponent implements OnInit {
     this.slotService.blockSlot(this.slotToBlock.id, this.blockReason.trim()).subscribe({
       next: (res) => {
         this.blocking = false;
-        this.alert.success('Slot Blocked', res.message);
         this.closeBlockModal();
         this.loadSlots();
+        this.alert.toastSuccess('Slot blocked successfully.');
       },
       error: (err) => {
         this.blocking = false;
+        this.cdr.detectChanges();
         this.alert.error('Cannot Block Slot', err.error?.error || 'Failed to block slot.');
       }
     });
@@ -652,8 +733,8 @@ export class OwnerSlotsComponent implements OnInit {
   onUnblockSlot(slot: Slot): void {
     this.slotService.unblockSlot(slot.id).subscribe({
       next: (res) => {
-        this.alert.success('Slot Re-opened', res.message);
         this.loadSlots();
+        this.alert.toastSuccess('Slot re-opened successfully.');
       },
       error: (err) => {
         this.alert.error('Error', err.error?.error || 'Failed to unblock slot.');
@@ -672,8 +753,8 @@ export class OwnerSlotsComponent implements OnInit {
 
     this.slotService.deleteSlot(slot.id).subscribe({
       next: (res) => {
-        this.alert.success('Slot Deleted', res.message);
         this.loadSlots();
+        this.alert.toastSuccess('Slot deleted.');
       },
       error: (err) => {
         this.alert.error('Delete Blocked', err.error?.error || 'Could not delete slot.');

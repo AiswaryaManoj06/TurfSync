@@ -50,6 +50,14 @@ def auto_expire_stale_bookings():
             cur.execute("UPDATE booking_requests SET status = 'Expired', updated_at = CURRENT_TIMESTAMP WHERE id = %s;", (r["id"],))
             cur.execute(
                 """
+                UPDATE slots SET status = 'Open'
+                WHERE id IN (SELECT slot_id FROM booking_slots WHERE booking_request_id = %s)
+                AND status = 'Requested';
+                """,
+                (r["id"],)
+            )
+            cur.execute(
+                """
                 INSERT INTO booking_status_history (booking_request_id, from_status, to_status, reason_or_note)
                 VALUES (%s, 'Pending', 'Expired', 'Auto-expired due to 12-hour timeout or passed slot start time.');
                 """,
@@ -298,6 +306,11 @@ class PlayerRequestsListView(APIView):
 
         sql += " GROUP BY br.id, t.name, t.address, t.sport, o.brand_name, o.mobile ORDER BY br.created_at DESC;"
         bookings = query_all(sql, sql_params)
+        for b in bookings:
+            if isinstance(b.get("slot_start_times"), str):
+                b["slot_start_times"] = [s.strip() for s in b["slot_start_times"].split(",") if s.strip()]
+            if isinstance(b.get("slot_end_times"), str):
+                b["slot_end_times"] = [s.strip() for s in b["slot_end_times"].split(",") if s.strip()]
         return Response({"bookings": bookings})
 
 class OwnerRequestsListView(APIView):
@@ -349,6 +362,11 @@ class OwnerRequestsListView(APIView):
             sql += " ORDER BY br.created_at DESC;"
 
         requests_list = query_all(sql, sql_params)
+        for r in requests_list:
+            if isinstance(r.get("slot_start_times"), str):
+                r["slot_start_times"] = [s.strip() for s in r["slot_start_times"].split(",") if s.strip()]
+            if isinstance(r.get("slot_end_times"), str):
+                r["slot_end_times"] = [s.strip() for s in r["slot_end_times"].split(",") if s.strip()]
 
         # Pending count badge
         pending_cnt = query_one(

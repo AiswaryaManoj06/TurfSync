@@ -376,69 +376,72 @@ class LoginView(APIView):
         if not email or not password:
             return Response({"error": "Email and password are required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        user_row = query_one(
-            "SELECT id, email, password_hash, role, status FROM users WHERE email = %s",
-            (email,)
-        )
-        if not user_row:
-            return Response({"error": "Invalid email or password."}, status=status.HTTP_401_UNAUTHORIZED)
-
-        if not verify_password(password, user_row["password_hash"]):
-            return Response({"error": "Invalid email or password."}, status=status.HTTP_401_UNAUTHORIZED)
-
-        role = user_row["role"]
-        user_id = user_row["id"]
-        status_val = user_row["status"]
-
-        # Role specific status checks
-        profile_data = {}
-        if role == "admin":
-            admin_row = query_one("SELECT id, full_name, status FROM admins WHERE user_id = %s", (user_id,))
-            if not admin_row or admin_row["status"] != "Active":
-                return Response({"error": "Admin account is inactive. Access denied."}, status=status.HTTP_403_FORBIDDEN)
-            profile_data = {
-                "admin_id": admin_row["id"],
-                "full_name": admin_row["full_name"],
-            }
-        elif role == "owner":
-            owner_row = query_one(
-                "SELECT id, full_name, brand_name, account_status, rejection_reason FROM owners WHERE user_id = %s",
-                (user_id,)
+        try:
+            user_row = query_one(
+                "SELECT id, email, password_hash, role, status FROM users WHERE email = %s",
+                (email,)
             )
-            if not owner_row:
-                return Response({"error": "Owner profile not found."}, status=status.HTTP_404_NOT_FOUND)
-            profile_data = {
-                "owner_id": owner_row["id"],
-                "full_name": owner_row["full_name"],
-                "brand_name": owner_row["brand_name"],
-                "account_status": owner_row["account_status"],
-                "rejection_reason": owner_row["rejection_reason"]
-            }
-        elif role == "player":
-            player_row = query_one(
-                "SELECT id, full_name, mobile, profile_photo FROM players WHERE user_id = %s",
-                (user_id,)
-            )
-            if not player_row:
-                return Response({"error": "Player profile not found."}, status=status.HTTP_404_NOT_FOUND)
-            profile_data = {
-                "player_id": player_row["id"],
-                "full_name": player_row["full_name"],
-                "mobile": player_row["mobile"],
-                "profile_photo": player_row["profile_photo"]
-            }
+            if not user_row:
+                return Response({"error": "Invalid email or password."}, status=status.HTTP_401_UNAUTHORIZED)
 
-        token = generate_jwt_token(user_id, email, role, status_val, profile_data)
-        return Response({
-            "token": token,
-            "user": {
-                "id": user_id,
-                "email": email,
-                "role": role,
-                "status": status_val,
-                **profile_data
-            }
-        })
+            if not verify_password(password, user_row["password_hash"]):
+                return Response({"error": "Invalid email or password."}, status=status.HTTP_401_UNAUTHORIZED)
+
+            role = user_row["role"]
+            user_id = user_row["id"]
+            status_val = user_row["status"]
+
+            # Role specific status checks
+            profile_data = {}
+            if role == "admin":
+                admin_row = query_one("SELECT id, full_name, status FROM admins WHERE user_id = %s", (user_id,))
+                if not admin_row or admin_row["status"] != "Active":
+                    return Response({"error": "Admin account is inactive. Access denied."}, status=status.HTTP_403_FORBIDDEN)
+                profile_data = {
+                    "admin_id": admin_row["id"],
+                    "full_name": admin_row["full_name"],
+                }
+            elif role == "owner":
+                owner_row = query_one(
+                    "SELECT id, full_name, brand_name, account_status, rejection_reason FROM owners WHERE user_id = %s",
+                    (user_id,)
+                )
+                if not owner_row:
+                    return Response({"error": "Owner profile not found."}, status=status.HTTP_404_NOT_FOUND)
+                profile_data = {
+                    "owner_id": owner_row["id"],
+                    "full_name": owner_row["full_name"],
+                    "brand_name": owner_row["brand_name"],
+                    "account_status": owner_row["account_status"],
+                    "rejection_reason": owner_row["rejection_reason"]
+                }
+            elif role == "player":
+                player_row = query_one(
+                    "SELECT id, full_name, mobile, profile_photo FROM players WHERE user_id = %s",
+                    (user_id,)
+                )
+                if not player_row:
+                    return Response({"error": "Player profile not found."}, status=status.HTTP_404_NOT_FOUND)
+                profile_data = {
+                    "player_id": player_row["id"],
+                    "full_name": player_row["full_name"],
+                    "mobile": player_row["mobile"],
+                    "profile_photo": player_row["profile_photo"]
+                }
+
+            token = generate_jwt_token(user_id, email, role, status_val, profile_data)
+            return Response({
+                "token": token,
+                "user": {
+                    "id": user_id,
+                    "email": email,
+                    "role": role,
+                    "status": status_val,
+                    **profile_data
+                }
+            })
+        except Exception as e:
+            return Response({"error": f"Sign in failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class CurrentUserView(APIView):
     """Returns current authenticated user details."""
@@ -476,7 +479,18 @@ class ExternalCitiesView(APIView):
         actual_state_id = st["id"]
         actual_state_name = st["name"]
 
-        # Try external location API (CountriesNow)
+        # Fast path: check local database first so cities load instantly (0ms)
+        existing_cities = query_all("SELECT id, state_id, name FROM cities WHERE state_id = %s ORDER BY name ASC;", (actual_state_id,))
+        if existing_cities:
+            return Response({
+                "state_id": actual_state_id,
+                "state_name": actual_state_name,
+                "source": "Local Database Cache",
+                "count": len(existing_cities),
+                "cities": existing_cities
+            })
+
+        # Try external location API (CountriesNow) if not found locally
         external_cities = []
         try:
             import urllib.request, urllib.parse, json, ssl

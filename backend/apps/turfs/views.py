@@ -3,6 +3,7 @@ Turf Management Views (Strict Direct SQL - NO ORM)
 Handles Turf CRUD, validation rules, blocking deletion on upcoming approved bookings,
 and player turf discovery search.
 """
+import re
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -180,18 +181,33 @@ class TurfListCreateView(APIView):
         # Validations
         if not name or not address or not contact_number:
             return Response({"error": "Name, address, and 10-digit contact number are required."}, status=status.HTTP_400_BAD_REQUEST)
-        if len(contact_number) != 10 or not contact_number.isdigit():
-            return Response({"error": "Contact number must be exactly 10 digits."}, status=status.HTTP_400_BAD_REQUEST)
+        if not re.match(r"^[A-Za-z0-9\s\'-]+$", name):
+            return Response({"error": "Turf name should only contain letters, numbers, and spaces."}, status=status.HTTP_400_BAD_REQUEST)
+        if len(contact_number) != 10 or not contact_number.isdigit() or not re.match(r"^\d{10}$", contact_number):
+            return Response({"error": "Contact number must be exactly 10 numeric digits without characters or special symbols."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check duplicate contact number across sports arenas
+        existing_phone = query_one("SELECT id, name FROM turfs WHERE contact_number = %s AND is_deleted = FALSE;", (contact_number,))
+        if existing_phone:
+            return Response({"error": f"A sports arena ('{existing_phone['name']}') is already registered with contact number {contact_number}. Contact numbers must be unique."}, status=status.HTTP_400_BAD_REQUEST)
+
         if not state_id or not city_id:
             return Response({"error": "State and City are required."}, status=status.HTTP_400_BAD_REQUEST)
-        if len(pincode) != 6 or not pincode.isdigit():
-            return Response({"error": "Pincode must be exactly 6 digits."}, status=status.HTTP_400_BAD_REQUEST)
-        if not weekday_price or float(weekday_price) <= 0:
-            return Response({"error": "Weekday price must be a positive number."}, status=status.HTTP_400_BAD_REQUEST)
-        if not weekend_price or float(weekend_price) <= 0:
-            return Response({"error": "Weekend price must be a positive number."}, status=status.HTTP_400_BAD_REQUEST)
-        if not max_players or int(max_players) <= 0:
-            return Response({"error": "Max players must be a positive integer."}, status=status.HTTP_400_BAD_REQUEST)
+        if len(pincode) != 6 or not pincode.isdigit() or not re.match(r"^\d{6}$", pincode):
+            return Response({"error": "Pincode must be exactly 6 numeric digits."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            wp_val = float(weekday_price)
+            we_val = float(weekend_price)
+            if wp_val <= 0 or we_val <= 0:
+                return Response({"error": "Weekday and weekend price must be positive numbers greater than 0. Negative numbers are not allowed."}, status=status.HTTP_400_BAD_REQUEST)
+        except (ValueError, TypeError):
+            return Response({"error": "Price must be a valid positive number."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            mp_val = int(max_players)
+            if mp_val <= 0:
+                return Response({"error": "Max players must be a positive integer greater than 0. Negative numbers are not allowed."}, status=status.HTTP_400_BAD_REQUEST)
+        except (ValueError, TypeError):
+            return Response({"error": "Max players must be a valid positive integer."}, status=status.HTTP_400_BAD_REQUEST)
         if not opening_time or not closing_time:
             return Response({"error": "Opening and closing times are required."}, status=status.HTTP_400_BAD_REQUEST)
         if closing_time <= opening_time:
@@ -303,6 +319,39 @@ class TurfDetailView(APIView):
         photos = data.get("photos", [])
         if isinstance(photos, str):
             photos = [p.strip() for p in photos.split(",") if p.strip()]
+
+        if not name or not address or not contact_number:
+            return Response({"error": "Name, address, and 10-digit contact number are required."}, status=status.HTTP_400_BAD_REQUEST)
+        if not re.match(r"^[A-Za-z0-9\s\'-]+$", name):
+            return Response({"error": "Turf name should only contain letters, numbers, and spaces."}, status=status.HTTP_400_BAD_REQUEST)
+        if len(contact_number) != 10 or not contact_number.isdigit() or not re.match(r"^\d{10}$", contact_number):
+            return Response({"error": "Contact number must be exactly 10 numeric digits without characters or special symbols."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check duplicate contact number for other turfs
+        existing_phone = query_one(
+            "SELECT id, name FROM turfs WHERE contact_number = %s AND id != %s AND is_deleted = FALSE;",
+            (contact_number, turf_id)
+        )
+        if existing_phone:
+            return Response({"error": f"Another sports arena ('{existing_phone['name']}') is already registered with contact number {contact_number}."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not state_id or not city_id:
+            return Response({"error": "State and City are required."}, status=status.HTTP_400_BAD_REQUEST)
+        if len(pincode) != 6 or not pincode.isdigit() or not re.match(r"^\d{6}$", pincode):
+            return Response({"error": "Pincode must be exactly 6 numeric digits."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            wp_val = float(weekday_price)
+            we_val = float(weekend_price)
+            if wp_val <= 0 or we_val <= 0:
+                return Response({"error": "Weekday and weekend price must be positive numbers greater than 0. Negative numbers are not allowed."}, status=status.HTTP_400_BAD_REQUEST)
+        except (ValueError, TypeError):
+            return Response({"error": "Price must be a valid positive number."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            mp_val = int(max_players)
+            if mp_val <= 0:
+                return Response({"error": "Max players must be a positive integer greater than 0. Negative numbers are not allowed."}, status=status.HTTP_400_BAD_REQUEST)
+        except (ValueError, TypeError):
+            return Response({"error": "Max players must be a valid positive integer."}, status=status.HTTP_400_BAD_REQUEST)
 
         if closing_time <= opening_time:
             return Response({"error": "Closing time must be later than opening time."}, status=status.HTTP_400_BAD_REQUEST)

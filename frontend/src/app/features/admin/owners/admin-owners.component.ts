@@ -113,9 +113,15 @@ import { Owner, State, City } from '../../../core/models/models';
               <tr *ngFor="let o of owners">
                 <td>
                   <div class="brand-title">{{ o.brand_name }}</div>
-                  <div class="turf-count" *ngIf="o.turf_count !== undefined">
+                  <button
+                    type="button"
+                    class="turf-count-btn"
+                    *ngIf="o.turf_count !== undefined"
+                    (click)="openTurfsModal(o)"
+                    title="View & Delete Turfs"
+                  >
                     <i class="bi bi-flag"></i> {{ o.turf_count }} Turf(s)
-                  </div>
+                  </button>
                 </td>
                 <td>
                   <div class="owner-name">{{ o.full_name }}</div>
@@ -150,6 +156,14 @@ import { Owner, State, City } from '../../../core/models/models';
                 </td>
                 <td class="text-right">
                   <div class="action-buttons">
+                    <button
+                      class="btn btn-sm btn-outline-info"
+                      (click)="openTurfsModal(o)"
+                      title="View & Delete Turfs"
+                    >
+                      <i class="bi bi-geo-alt"></i> Turfs
+                    </button>
+
                     <a
                       [routerLink]="['/admin/owners', o.id, 'verify']"
                       class="btn btn-sm"
@@ -183,6 +197,82 @@ import { Owner, State, City } from '../../../core/models/models';
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Turfs Management Modal for Admin -->
+      <div class="modal-backdrop" *ngIf="showTurfsModal" (click)="closeTurfsModal()">
+        <div class="modal-card wide-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <div>
+              <h2 class="modal-title">
+                <i class="bi bi-geo-alt text-primary"></i>
+                Turfs for {{ selectedOwnerForTurfs?.brand_name }}
+              </h2>
+              <p class="modal-sub">
+                Owner: <strong>{{ selectedOwnerForTurfs?.full_name }}</strong> ({{ selectedOwnerForTurfs?.email }})
+              </p>
+            </div>
+            <button class="modal-close" (click)="closeTurfsModal()">&times;</button>
+          </div>
+
+          <div class="modal-body">
+            <div *ngIf="loadingTurfs" class="text-center py-4">
+              <span class="spinner-border"></span> Loading turfs...
+            </div>
+
+            <div *ngIf="!loadingTurfs && ownerTurfs.length === 0" class="text-center py-4 text-muted">
+              <i class="bi bi-info-circle display-6 d-block mb-2"></i>
+              No registered turfs found for this owner.
+            </div>
+
+            <div class="table-responsive" *ngIf="!loadingTurfs && ownerTurfs.length > 0">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Turf Name</th>
+                    <th>Sport</th>
+                    <th>Location</th>
+                    <th>Pricing</th>
+                    <th>Status</th>
+                    <th class="text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let t of ownerTurfs">
+                    <td>
+                      <strong>{{ t.name }}</strong>
+                      <div class="text-muted small">{{ t.size }} • {{ t.surface }}</div>
+                    </td>
+                    <td><span class="badge bg-light text-dark">{{ t.sport }}</span></td>
+                    <td>{{ t.city_name || 'N/A' }}, {{ t.state_name || '' }}</td>
+                    <td>
+                      <div>Weekday: ₹{{ t.weekday_price_per_hour }}/hr</div>
+                      <div>Weekend: ₹{{ t.weekend_price_per_hour }}/hr</div>
+                    </td>
+                    <td>
+                      <span class="badge" [ngClass]="t.status === 'Active' ? 'badge-approved' : 'badge-rejected'">
+                        {{ t.status }}
+                      </span>
+                    </td>
+                    <td class="text-right">
+                      <button
+                        class="btn btn-sm btn-outline-danger"
+                        (click)="onDeleteTurfFromModal(t)"
+                        title="Delete Turf (Admin)"
+                      >
+                        <i class="bi bi-trash"></i> Delete Turf
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="closeTurfsModal()">Close</button>
+          </div>
         </div>
       </div>
     </div>
@@ -278,6 +368,25 @@ import { Owner, State, City } from '../../../core/models/models';
       font-weight: 600;
       margin-top: 0.15rem;
     }
+    .turf-count-btn {
+      font-size: 0.75rem;
+      color: #059669;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 4px;
+      font-weight: 600;
+      margin-top: 0.25rem;
+      padding: 0.2rem 0.5rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      transition: all 0.2s;
+    }
+    .turf-count-btn:hover {
+      background: #059669;
+      color: #ffffff;
+    }
     .owner-name { font-weight: 600; color: #1e293b; }
     .type-pill {
       font-size: 0.75rem;
@@ -293,6 +402,53 @@ import { Owner, State, City } from '../../../core/models/models';
       gap: 0.4rem;
     }
     .text-right { text-align: right; }
+
+    .modal-backdrop {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1050;
+      padding: 1rem;
+    }
+    .modal-card {
+      background: #ffffff;
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 650px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      overflow: hidden;
+    }
+    .modal-card.wide-modal {
+      max-width: 850px;
+    }
+    .modal-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .modal-title { font-size: 1.25rem; font-weight: 700; color: #0f172a; margin: 0; }
+    .modal-sub { color: #64748b; font-size: 0.85rem; margin-top: 0.25rem; }
+    .modal-close {
+      background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #94a3b8;
+    }
+    .modal-close:hover { color: #0f172a; }
+    .modal-body { padding: 1.25rem 1.5rem; overflow-y: auto; }
+    .modal-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+    }
   `]
 })
 export class AdminOwnersComponent implements OnInit {
@@ -442,7 +598,7 @@ export class AdminOwnersComponent implements OnInit {
   async onDeleteOwner(owner: Owner): Promise<void> {
     const confirm = await this.alert.confirm(
       `Delete Owner: ${owner.brand_name}?`,
-      'This will soft-delete the owner and all their registered turfs. Active bookings must be resolved first. Are you sure?',
+      'This will delete the owner account and deactivate their turfs. Existing player bookings will remain preserved and affected players will be notified automatically.',
       'Yes, Delete Owner',
       '#ef4444'
     );
@@ -450,7 +606,7 @@ export class AdminOwnersComponent implements OnInit {
 
     this.adminService.deleteOwner(owner.id, 'Admin soft-delete action').subscribe({
       next: (res) => {
-        this.alert.success('Deleted', res.message || 'Owner deleted successfully.');
+        this.alert.toastSuccess(res.message || 'Owner deleted successfully.');
         this.loadOwners();
       },
       error: (err) => {
@@ -504,5 +660,64 @@ export class AdminOwnersComponent implements OnInit {
         },
         error: (err) => this.alert.error('Error', err.error?.error || 'Failed')
       });
+  }
+
+  showTurfsModal = false;
+  selectedOwnerForTurfs: Owner | null = null;
+  ownerTurfs: any[] = [];
+  loadingTurfs = false;
+
+  openTurfsModal(owner: Owner): void {
+    this.selectedOwnerForTurfs = owner;
+    this.showTurfsModal = true;
+    this.loadingTurfs = true;
+    this.ownerTurfs = [];
+    this.adminService.getOwnerDetail(owner.id).subscribe({
+      next: (res: any) => {
+        this.ownerTurfs = res.turfs || [];
+        this.loadingTurfs = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.loadingTurfs = false;
+        this.alert.error('Failed', err.error?.error || 'Could not fetch owner turfs.');
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  closeTurfsModal(): void {
+    this.showTurfsModal = false;
+    this.selectedOwnerForTurfs = null;
+    this.ownerTurfs = [];
+  }
+
+  async onDeleteTurfFromModal(turf: any): Promise<void> {
+    const confirm = await this.alert.confirm(
+      `Delete Turf: ${turf.name}?`,
+      'This will soft-delete the turf from the platform. Active bookings must be resolved first. Are you sure?',
+      'Yes, Delete Turf',
+      '#ef4444'
+    );
+    if (!confirm) return;
+
+    this.adminService.deleteTurf(turf.id).subscribe({
+      next: (res) => {
+        this.alert.success('Deleted', res.message || 'Turf deleted successfully.');
+        this.ownerTurfs = this.ownerTurfs.filter((t) => t.id !== turf.id);
+        if (this.selectedOwnerForTurfs && this.selectedOwnerForTurfs.turf_count !== undefined) {
+          this.selectedOwnerForTurfs.turf_count = Math.max(0, this.selectedOwnerForTurfs.turf_count - 1);
+        }
+        // Also update in the main owners list
+        const match = this.owners.find((o) => o.id === this.selectedOwnerForTurfs?.id);
+        if (match && match.turf_count !== undefined) {
+          match.turf_count = Math.max(0, match.turf_count - 1);
+        }
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.alert.error('Cannot Delete', err.error?.error || 'Failed to delete turf.');
+      }
+    });
   }
 }
